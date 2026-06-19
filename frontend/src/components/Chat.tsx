@@ -24,12 +24,12 @@ const DEFAULT_CONSTRAINTS: ResearchConstraints = {
   quality_target: 75,
 }
 
-const RAG_TOGGLES: [keyof ResearchConstraints, string][] = [
-  ['use_adaptive', 'Adaptive RAG'],
-  ['use_reflexion', 'Reflexion'],
-  ['use_hyde', 'HyDE'],
-  ['use_rag_fusion', 'RAG Fusion'],
-  ['use_storm', 'STORM Personas'],
+const RAG_TOGGLES: [keyof ResearchConstraints, string, string][] = [
+  ['use_adaptive', 'Adaptive',   'Auto-adjusts search depth by query complexity'],
+  ['use_reflexion','Reflexion',  'Self-critiques & retries when quality is low'],
+  ['use_hyde',     'HyDE',       'Generates a hypothetical answer to anchor searches'],
+  ['use_rag_fusion','RAG Fusion','Runs multiple queries, merges via rank scoring'],
+  ['use_storm',    'STORM',      'Expert personas each contribute unique angles'],
 ]
 
 export default function Chat({ onConversationCreated, loadThreadId }: Props) {
@@ -258,14 +258,14 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
             <div className="mb-3 p-3 bg-card border border-border rounded-xl">
               <p className="text-xs font-medium text-muted uppercase tracking-wider mb-3">RAG Options</p>
               <div className="grid grid-cols-2 gap-2.5 mb-3">
-                {RAG_TOGGLES.map(([key, label]) => (
-                  <label key={key} className="flex items-center gap-2 cursor-pointer group select-none">
+                {RAG_TOGGLES.map(([key, label, desc]) => (
+                  <label key={key} className="flex items-start gap-2 cursor-pointer group select-none">
                     <button
                       type="button"
                       role="switch"
                       aria-checked={!!constraints[key]}
                       onClick={() => toggleConstraint(key)}
-                      className={`w-8 h-4 rounded-full transition-colors relative shrink-0 ${
+                      className={`w-8 h-4 rounded-full transition-colors relative shrink-0 mt-0.5 ${
                         constraints[key] ? 'bg-accent' : 'bg-border'
                       }`}
                     >
@@ -273,7 +273,10 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
                         constraints[key] ? 'translate-x-4' : 'translate-x-0.5'
                       }`} />
                     </button>
-                    <span className="text-xs text-muted group-hover:text-white transition-colors">{label}</span>
+                    <div>
+                      <p className="text-xs font-medium text-white leading-tight">{label}</p>
+                      <p className="text-xs text-muted leading-tight">{desc}</p>
+                    </div>
                   </label>
                 ))}
               </div>

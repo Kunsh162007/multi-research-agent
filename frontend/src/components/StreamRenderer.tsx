@@ -18,6 +18,7 @@ const NODE_ICONS: Record<string, string> = {
   grade_relevance:  '⊡',
   generate:         '◎',
   grade_answer:     '⊕',
+  reflect:          '↺',
   synthesize:       '◈',
   validate:         '✓',
   resume:           '↩',
@@ -26,12 +27,14 @@ const NODE_ICONS: Record<string, string> = {
 export default function StreamRenderer({ events, report, isStreaming, quality, iteration, validation }: Props) {
   const steps = events.filter(e => e.type === 'step')
   const hasReport = report.length > 0
-  const showProgress = isStreaming || (steps.length > 0 && !hasReport)
+  const isWriting = isStreaming && hasReport
+  const isResearching = isStreaming && !hasReport
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Progress feed */}
-      {showProgress && (
+
+      {/* Research progress — shown while graph is running (no report yet) */}
+      {(isResearching || (!isStreaming && steps.length > 0 && !hasReport)) && (
         <div className="flex flex-col gap-1.5 p-4 bg-panel border border-border rounded-xl">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-muted uppercase tracking-wider">Research progress</span>
@@ -60,7 +63,7 @@ export default function StreamRenderer({ events, report, isStreaming, quality, i
                 <span className="font-mono text-accent shrink-0 w-4 text-center text-xs mt-0.5">
                   {NODE_ICONS[e.node] ?? '·'}
                 </span>
-                <span className={isLast && isStreaming ? '' : ''}>{e.detail}</span>
+                <span>{e.detail}</span>
                 {isLast && isStreaming && (
                   <span className="flex gap-0.5 mt-1 ml-1">
                     <span className="w-1 h-1 rounded-full bg-accent typing-dot" />
@@ -74,19 +77,35 @@ export default function StreamRenderer({ events, report, isStreaming, quality, i
         </div>
       )}
 
-      {/* Streaming / final report */}
+      {/* Token-by-token report streaming */}
       {hasReport && (
-        <div className="report-body">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{report}</ReactMarkdown>
-          {isStreaming && (
-            <span className="inline-block w-0.5 h-4 bg-accent animate-pulse ml-0.5 align-middle" />
+        <div className="flex flex-col gap-2">
+          {/* "Writing report" header — only while tokens are arriving */}
+          {isWriting && (
+            <div className="flex items-center gap-2 px-1">
+              <span className="text-xs font-medium text-accent uppercase tracking-wider">Writing report</span>
+              <span className="flex gap-0.5">
+                <span className="w-1 h-1 rounded-full bg-accent typing-dot" />
+                <span className="w-1 h-1 rounded-full bg-accent typing-dot" style={{ animationDelay: '0.2s' }} />
+                <span className="w-1 h-1 rounded-full bg-accent typing-dot" style={{ animationDelay: '0.4s' }} />
+              </span>
+            </div>
           )}
+
+          <div className="report-body">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{report}</ReactMarkdown>
+            {/* Blinking cursor at the end of the last token */}
+            {isWriting && (
+              <span className="inline-block w-0.5 h-[1.1em] bg-accent animate-pulse ml-0.5 align-middle rounded-sm" />
+            )}
+          </div>
         </div>
       )}
 
-      {/* Validation scores */}
+      {/* Validation scores — shown after streaming completes */}
       {validation && !isStreaming && (
-        <div className="flex flex-wrap gap-3 p-3 bg-panel border border-border rounded-xl mt-2">
+        <div className="flex flex-wrap gap-3 p-3 bg-panel border border-border rounded-xl mt-1">
+          <span className="w-full text-xs font-medium text-muted uppercase tracking-wider mb-1">Report quality</span>
           {[
             { label: 'Accuracy',     val: validation.accuracy },
             { label: 'Completeness', val: validation.completeness },
@@ -94,16 +113,21 @@ export default function StreamRenderer({ events, report, isStreaming, quality, i
             { label: 'Overall',      val: validation.overall },
           ].map(({ label, val }) => val != null && (
             <div key={label} className="flex items-center gap-2">
-              <span className="text-xs text-muted">{label}</span>
-              <div className="w-16 h-1.5 bg-border rounded-full overflow-hidden">
+              <span className="text-xs text-muted w-20">{label}</span>
+              <div className="w-20 h-1.5 bg-border rounded-full overflow-hidden">
                 <div
-                  className={`h-full rounded-full ${(val ?? 0) >= 75 ? 'bg-green-500' : (val ?? 0) >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                  className={`h-full rounded-full transition-all duration-700 ${
+                    (val ?? 0) >= 75 ? 'bg-green-500' : (val ?? 0) >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}
                   style={{ width: `${val}%` }}
                 />
               </div>
-              <span className="text-xs text-white font-mono">{val}</span>
+              <span className="text-xs text-white font-mono">{val}/100</span>
             </div>
           ))}
+          {validation.summary && (
+            <p className="w-full text-xs text-muted mt-1 italic">"{validation.summary}"</p>
+          )}
         </div>
       )}
     </div>
