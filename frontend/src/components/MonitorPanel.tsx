@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react'
 import { listTopics, addTopic, removeTopic, syncAll, syncTopic, getKnowledge } from '../lib/api'
 import type { Topic, KnowledgeItem } from '../types'
 
-interface Props {
-  onClose: () => void
-}
+interface Props { onClose: () => void }
 
 export default function MonitorPanel({ onClose }: Props) {
   const [topics, setTopics] = useState<Topic[]>([])
@@ -18,18 +16,14 @@ export default function MonitorPanel({ onClose }: Props) {
 
   useEffect(() => {
     Promise.all([listTopics(), getKnowledge()])
-      .then(([t, k]) => {
-        setTopics(t)
-        setItems(k.items)
-      })
+      .then(([t, k]) => { setTopics(t); setItems(k.items) })
       .finally(() => setLoading(false))
   }, [])
 
   async function handleAddTopic() {
     if (!newTopic.trim()) return
     await addTopic(newTopic.trim())
-    const updated = await listTopics()
-    setTopics(updated)
+    setTopics(await listTopics())
     setNewTopic('')
   }
 
@@ -40,17 +34,13 @@ export default function MonitorPanel({ onClose }: Props) {
   }
 
   async function handleSyncAll() {
-    setSyncing(true)
-    setSyncResult(null)
+    setSyncing(true); setSyncResult(null)
     try {
       const result = await syncAll()
       const total = Object.values(result.synced).reduce((a, b) => a + b, 0)
-      setSyncResult(`Synced ${topics.length} topics — ${total} new items found`)
-      const k = await getKnowledge()
-      setItems(k.items)
-    } finally {
-      setSyncing(false)
-    }
+      setSyncResult(`Synced ${topics.length} topics — ${total} new items`)
+      setItems((await getKnowledge()).items)
+    } finally { setSyncing(false) }
   }
 
   async function handleSyncTopic(topic: string) {
@@ -58,72 +48,77 @@ export default function MonitorPanel({ onClose }: Props) {
     try {
       const result = await syncTopic(topic)
       setSyncResult(`"${topic}" — ${result.new_items} new items`)
-      const k = await getKnowledge(activeTopic ?? undefined)
-      setItems(k.items)
-    } finally {
-      setSyncingTopic(null)
-    }
+      setItems((await getKnowledge(activeTopic ?? undefined)).items)
+    } finally { setSyncingTopic(null) }
   }
 
   async function handleTopicClick(topic: string) {
     const t = activeTopic === topic ? null : topic
     setActiveTopic(t)
-    const k = await getKnowledge(t ?? undefined)
-    setItems(k.items)
+    setItems((await getKnowledge(t ?? undefined)).items)
   }
 
   return (
-    <div className="flex flex-col h-full bg-surface font-mono">
+    <div className="flex flex-col h-full" style={{ background: '#0c0c0c' }}>
       {/* Header */}
-      <div
-        className="flex items-center justify-between px-5 py-4 shrink-0"
-        style={{ borderBottom: '1px solid rgba(0,255,225,0.15)' }}
-      >
-        <span className="text-xs text-accent tracking-widest">// KNOWLEDGE_MONITOR</span>
-        <button
-          onClick={onClose}
-          className="text-xs text-dim-cyan hover:text-magenta transition-colors"
-        >
-          [×] CLOSE
-        </button>
+      <div style={{ padding: '20px 28px 16px', borderBottom: '1px solid rgba(212,168,71,0.1)' }}>
+        <div className="flex items-center justify-between">
+          <p style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.25em', textTransform: 'uppercase' }}>
+            ◆ &nbsp; Knowledge Monitor
+          </p>
+          <button
+            onClick={onClose}
+            style={{ fontSize: '10px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(245,240,232,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', transition: 'color 0.2s', background: 'none', border: 'none' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(245,240,232,0.7)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(245,240,232,0.3)' }}
+          >
+            Close ×
+          </button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-5">
+      <div className="flex-1 overflow-y-auto flex flex-col gap-6" style={{ padding: '20px 28px' }}>
+
         {/* Add topic */}
         <section>
-          <p className="text-xs text-dim-cyan tracking-widest mb-2">// TRACK_TOPIC</p>
+          <p style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '10px' }}>
+            Track Topic
+          </p>
           <div className="flex gap-2">
             <div
-              className="flex-1 flex items-center gap-2 px-3"
-              style={{ border: '1px solid rgba(0,255,225,0.25)' }}
+              className="gold-input-row flex-1 flex items-center gap-2"
+              style={{ padding: '8px 0' }}
             >
-              <span className="text-magenta text-xs">$&gt;</span>
+              <span style={{ color: 'rgba(212,168,71,0.35)', fontSize: '12px', flexShrink: 0 }}>◆</span>
               <input
-                className="flex-1 bg-transparent text-accent text-xs py-2 focus:outline-none placeholder-dim-cyan"
-                placeholder="e.g. LoRA fine-tuning"
+                style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'rgba(245,240,232,0.8)', fontSize: '13px', fontFamily: 'Georgia, serif', caretColor: '#d4a847' }}
+                placeholder="e.g. LoRA fine-tuning…"
                 value={newTopic}
                 onChange={e => setNewTopic(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAddTopic()}
               />
             </div>
-            <button
-              onClick={handleAddTopic}
-              className="btn-primary px-3"
-            >
-              ADD
-            </button>
+            <button onClick={handleAddTopic} className="btn-primary">Add</button>
           </div>
         </section>
 
-        {/* Sync controls */}
+        {/* Topics list */}
         <section>
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs text-dim-cyan tracking-widest">// TRACKED_TOPICS</p>
+          <div className="flex items-center justify-between mb-3">
+            <p style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+              Tracked Topics
+            </p>
             <button
               onClick={handleSyncAll}
               disabled={syncing || topics.length === 0}
-              className="text-xs text-dim-cyan hover:text-accent disabled:opacity-40 transition-colors"
-              style={{ border: '1px solid rgba(0,255,225,0.15)', padding: '2px 8px' }}
+              style={{
+                fontSize: '10px', fontFamily: "'Segoe UI', system-ui, sans-serif",
+                letterSpacing: '0.1em', textTransform: 'uppercase',
+                border: '1px solid rgba(212,168,71,0.2)',
+                color: 'rgba(212,168,71,0.5)', background: 'transparent',
+                padding: '4px 12px', cursor: 'pointer', transition: 'all 0.2s',
+                opacity: (syncing || topics.length === 0) ? 0.4 : 1,
+              }}
             >
               {syncing ? (
                 <span className="flex gap-0.5">
@@ -131,57 +126,59 @@ export default function MonitorPanel({ onClose }: Props) {
                   <span className="w-1 h-1 bg-accent typing-dot" />
                   <span className="w-1 h-1 bg-accent typing-dot" />
                 </span>
-              ) : '[SYNC_ALL]'}
+              ) : 'Sync All'}
             </button>
           </div>
 
           {syncResult && (
-            <p className="text-xs text-accent mb-2">&gt; {syncResult}</p>
+            <p style={{ fontSize: '12px', color: '#d4a847', fontFamily: "'Segoe UI', system-ui, sans-serif", marginBottom: '10px' }}>
+              ◆ {syncResult}
+            </p>
           )}
 
           {loading ? (
-            <p className="text-xs text-dim-cyan">LOADING...</p>
+            <div className="flex gap-1.5 py-2">
+              <span className="w-1.5 h-1.5 bg-accent typing-dot" />
+              <span className="w-1.5 h-1.5 bg-accent typing-dot" />
+              <span className="w-1.5 h-1.5 bg-accent typing-dot" />
+            </div>
           ) : topics.length === 0 ? (
-            <p className="text-xs text-dim-cyan">&gt; no topics tracked. add one above.</p>
+            <p style={{ fontSize: '12px', color: 'rgba(245,240,232,0.25)', fontFamily: "'Segoe UI', system-ui, sans-serif", fontStyle: 'italic' }}>
+              No topics tracked. Add one above.
+            </p>
           ) : (
             <div className="flex flex-col gap-1.5">
               {topics.map(t => (
                 <div
                   key={t.topic}
-                  className="flex items-center gap-2 px-3 py-2 cursor-pointer transition-all"
+                  className="flex items-center gap-2 cursor-pointer transition-all"
                   style={{
-                    border: `1px solid ${activeTopic === t.topic ? '#00ffe1' : 'rgba(0,255,225,0.15)'}`,
-                    boxShadow: activeTopic === t.topic ? '0 0 8px rgba(0,255,225,0.2)' : 'none',
-                    background: activeTopic === t.topic ? 'rgba(0,255,225,0.05)' : 'transparent',
+                    padding: '10px 14px',
+                    border: `1px solid ${activeTopic === t.topic ? 'rgba(212,168,71,0.4)' : 'rgba(212,168,71,0.1)'}`,
+                    background: activeTopic === t.topic ? 'rgba(212,168,71,0.05)' : 'transparent',
                   }}
                   onClick={() => handleTopicClick(t.topic)}
                 >
-                  <span
-                    className="text-xs shrink-0"
-                    style={{ color: activeTopic === t.topic ? '#00ffe1' : '#1e4a44' }}
-                  >
-                    ▶
-                  </span>
-                  <span className="flex-1 text-xs text-accent truncate">{t.topic}</span>
+                  <span style={{ fontSize: '10px', color: activeTopic === t.topic ? '#d4a847' : 'rgba(212,168,71,0.2)', flexShrink: 0 }}>◆</span>
+                  <span style={{ flex: 1, fontSize: '13px', color: activeTopic === t.topic ? 'rgba(245,240,232,0.8)' : 'rgba(245,240,232,0.45)', fontFamily: "'Segoe UI', system-ui, sans-serif" }} className="truncate">{t.topic}</span>
                   <button
                     onClick={e => { e.stopPropagation(); handleSyncTopic(t.topic) }}
                     disabled={syncingTopic === t.topic}
-                    className="text-xs text-dim-cyan hover:text-accent transition-colors px-1"
+                    style={{ fontSize: '10px', color: 'rgba(212,168,71,0.35)', cursor: 'pointer', background: 'none', border: 'none', padding: '0 4px', transition: 'color 0.2s' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#d4a847' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(212,168,71,0.35)' }}
                     title="Sync now"
                   >
-                    {syncingTopic === t.topic ? (
-                      <span className="flex gap-0.5">
-                        <span className="w-1 h-1 bg-accent typing-dot" />
-                        <span className="w-1 h-1 bg-accent typing-dot" />
-                      </span>
-                    ) : '[↻]'}
+                    {syncingTopic === t.topic ? '…' : '↻'}
                   </button>
                   <button
                     onClick={e => { e.stopPropagation(); handleRemoveTopic(t.topic) }}
-                    className="text-xs text-dim-cyan hover:text-magenta transition-colors px-1"
+                    style={{ fontSize: '14px', color: 'rgba(245,240,232,0.2)', cursor: 'pointer', background: 'none', border: 'none', padding: '0 4px', transition: 'color 0.2s' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(245,240,232,0.6)' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(245,240,232,0.2)' }}
                     title="Remove topic"
                   >
-                    [×]
+                    ×
                   </button>
                 </div>
               ))}
@@ -191,15 +188,15 @@ export default function MonitorPanel({ onClose }: Props) {
 
         {/* Knowledge items */}
         <section>
-          <div className="flex items-center gap-2 mb-2">
-            <p className="text-xs text-dim-cyan tracking-widest">
-              {activeTopic ? `// KNOWLEDGE: ${activeTopic.toUpperCase()}` : '// ALL_KNOWLEDGE'}
+          <div className="flex items-center gap-2 mb-3">
+            <p style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+              {activeTopic ? `Knowledge — ${activeTopic}` : 'All Knowledge'}
             </p>
-            <span className="text-xs text-accent">[{items.length}]</span>
+            <span style={{ fontSize: '10px', fontFamily: 'Georgia, serif', color: 'rgba(212,168,71,0.5)' }}>[{items.length}]</span>
           </div>
           {items.length === 0 ? (
-            <p className="text-xs text-dim-cyan">
-              &gt; {activeTopic ? 'no items for this topic. try syncing.' : 'no items yet. sync a topic.'}
+            <p style={{ fontSize: '12px', color: 'rgba(245,240,232,0.25)', fontFamily: "'Segoe UI', system-ui, sans-serif", fontStyle: 'italic' }}>
+              {activeTopic ? 'No items for this topic. Try syncing.' : 'No items yet. Sync a topic.'}
             </p>
           ) : (
             <div className="flex flex-col gap-2">
@@ -209,26 +206,27 @@ export default function MonitorPanel({ onClose }: Props) {
                   href={item.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block p-3 transition-all group"
-                  style={{ border: '1px solid rgba(0,255,225,0.15)' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#00ffe1'; (e.currentTarget as HTMLElement).style.boxShadow = '0 0 8px rgba(0,255,225,0.15)' }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(0,255,225,0.15)'; (e.currentTarget as HTMLElement).style.boxShadow = 'none' }}
+                  className="block transition-all"
+                  style={{ padding: '12px 14px', border: '1px solid rgba(212,168,71,0.1)', textDecoration: 'none' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(212,168,71,0.3)' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(212,168,71,0.1)' }}
                 >
-                  <div className="flex items-start gap-2">
-                    <span
-                      className="text-xs px-1.5 py-0.5 shrink-0 mt-0.5"
-                      style={{
-                        border: `1px solid ${item.item_type === 'arxiv' ? 'rgba(255,45,120,0.4)' : 'rgba(0,255,225,0.3)'}`,
-                        color: item.item_type === 'arxiv' ? '#ff2d78' : '#00ffe1',
-                      }}
-                    >
-                      {item.item_type.toUpperCase()}
+                  <div className="flex items-start gap-3">
+                    <span style={{
+                      fontSize: '10px', padding: '2px 8px',
+                      border: `1px solid ${item.item_type === 'arxiv' ? 'rgba(212,168,71,0.4)' : 'rgba(212,168,71,0.2)'}`,
+                      color: item.item_type === 'arxiv' ? '#d4a847' : 'rgba(212,168,71,0.5)',
+                      fontFamily: "'Segoe UI', system-ui, sans-serif",
+                      letterSpacing: '0.08em', textTransform: 'uppercase',
+                      flexShrink: 0, marginTop: '1px',
+                    }}>
+                      {item.item_type}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-xs text-accent group-hover:text-accent leading-snug line-clamp-2 transition-colors">
+                      <p style={{ fontSize: '13px', color: 'rgba(245,240,232,0.65)', lineHeight: 1.45 }} className="line-clamp-2">
                         {item.title}
                       </p>
-                      <p className="text-xs text-dim-cyan mt-1">
+                      <p style={{ fontSize: '10px', color: 'rgba(212,168,71,0.3)', marginTop: '4px', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
                         {new Date(item.discovered_at).toLocaleDateString()}
                       </p>
                     </div>

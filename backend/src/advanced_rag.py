@@ -23,7 +23,7 @@ Research-paper-inspired RAG enhancements. Each is toggleable via constraints dic
 
 import json
 import logging
-from src.llm import get_llm
+from src.llm import get_llm, get_fast_llm
 from src.state import ResearchState
 from src.tools import TOOL_REGISTRY
 
@@ -63,8 +63,10 @@ Vary the queries by:
 - Specificity (broad overview / narrow technical detail)
 - Source type (academic paper / implementation / tutorial)
 
+Available tools: web_search, arxiv_search, github_search, wikipedia_search, semantic_scholar_search, crossref_search
+
 Return ONLY valid JSON:
-{{"queries": [{{"tool": "web_search|arxiv_search|github_search", "query": "..."}}]}}"""
+{{"queries": [{{"tool": "tool_name", "query": "..."}}]}}"""
 
 _REFLECT = """You are a research critic performing Reflexion.
 
@@ -88,6 +90,15 @@ Return ONLY valid JSON:
     {{"tool": "arxiv_search|web_search|github_search", "query": "very specific recovery query"}}
   ]
 }}"""
+
+_MULTI_QUERY = """Generate {n} semantically varied search queries for this research topic.
+Vary by perspective (broad/narrow/comparative), specificity, and terminology.
+
+Query: {query}
+Research angles: {angles}
+
+Return ONLY valid JSON:
+{{"queries": ["query 1", "query 2", "query 3"]}}"""
 
 _STORM_PERSONAS = """You are a research architect using the STORM methodology.
 Generate {n} distinct expert personas who would research this topic differently.
@@ -312,6 +323,23 @@ def should_reflect(state: ResearchState) -> str:
         logger.info(f"Reflexion triggered: quality={quality} < {REFLECT_QUALITY_THRESHOLD}")
         return "reflect"
     return "decide_retrieval"
+
+
+# ─── 6. Multi-Query Expansion ─────────────────────────────────────────────────
+
+def multi_query_expand(query: str, angles: list = None, n: int = 3) -> list:
+    """Generate N semantically varied query variations using the fast LLM."""
+    try:
+        result = _parse_json(
+            get_fast_llm(temperature=0.4).invoke(
+                _MULTI_QUERY.format(n=n, query=query, angles=angles or [])
+            ).content,
+            fallback={"queries": []},
+        )
+        return [q for q in result.get("queries", []) if q and q != query][:n]
+    except Exception as e:
+        logger.warning(f"Multi-query expansion failed: {e}")
+        return []
 
 
 # ─── 5. STORM multi-perspective ───────────────────────────────────────────────

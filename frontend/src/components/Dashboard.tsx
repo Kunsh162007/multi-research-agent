@@ -4,10 +4,12 @@ import type { Stats } from '../types'
 
 interface Props { onClose: () => void }
 
-function NeonSection({ title, children }: { title: string; children: React.ReactNode }) {
+function GoldSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="p-4 bg-card font-mono" style={{ border: '1px solid rgba(0,255,225,0.2)' }}>
-      <p className="text-xs text-dim-cyan tracking-widest mb-3">{title}</p>
+    <div style={{ background: '#181612', border: '1px solid rgba(212,168,71,0.1)', padding: '20px 24px' }}>
+      <p style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '16px' }}>
+        {title}
+      </p>
       {children}
     </div>
   )
@@ -20,116 +22,124 @@ export default function Dashboard({ onClose }: Props) {
   const maxActivity = stats ? Math.max(...stats.activity.map(a => a.count), 1) : 1
 
   return (
-    <div className="flex flex-col h-full bg-surface font-mono">
+    <div className="flex flex-col h-full" style={{ background: '#0c0c0c' }}>
       {/* Header */}
-      <div
-        className="flex items-center justify-between px-5 py-4 shrink-0"
-        style={{ borderBottom: '1px solid rgba(0,255,225,0.15)' }}
-      >
-        <div>
-          <span className="text-xs text-accent tracking-widest">// RESEARCH_DASHBOARD</span>
+      <div style={{ padding: '20px 28px 16px', borderBottom: '1px solid rgba(212,168,71,0.1)' }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.25em', textTransform: 'uppercase', marginBottom: '4px' }}>
+              ◆ &nbsp; Research Dashboard
+            </p>
+            <div style={{ color: 'rgba(212,168,71,0.15)', fontSize: '11px', letterSpacing: '0.04em', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+              ══════════════════════════════════
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ fontSize: '10px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(245,240,232,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', transition: 'color 0.2s', background: 'none', border: 'none' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(245,240,232,0.7)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(245,240,232,0.3)' }}
+          >
+            Close ×
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="text-xs text-dim-cyan hover:text-magenta transition-colors font-mono"
-        >
-          [×] CLOSE
-        </button>
       </div>
 
       {!stats ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="flex gap-1.5">
-            {[0,1,2].map(i => (
-              <span key={i} className="w-2 h-2 bg-accent typing-dot" style={{ animationDelay: `${i * 0.2}s` }} />
-            ))}
+            <span className="w-2 h-2 bg-accent typing-dot" />
+            <span className="w-2 h-2 bg-accent typing-dot" />
+            <span className="w-2 h-2 bg-accent typing-dot" />
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
+        <div className="flex-1 overflow-y-auto flex flex-col gap-4" style={{ padding: '20px 28px' }}>
+
           {/* Stat cards */}
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: 'SESSIONS',      value: stats.total_conversations, sym: '◈' },
-              { label: 'REPORTS',       value: stats.total_reports,        sym: '◉' },
-              { label: 'TOPICS',        value: stats.monitor.topics,       sym: '⬡' },
-              { label: 'KNOWLEDGE',     value: stats.monitor.knowledge_items, sym: '✦' },
+              { label: 'Sessions',  value: stats.total_conversations, sym: '◈' },
+              { label: 'Reports',   value: stats.total_reports,        sym: '◉' },
+              { label: 'Topics',    value: stats.monitor.topics,       sym: '⬡' },
+              { label: 'Knowledge', value: stats.monitor.knowledge_items, sym: '✦' },
             ].map(s => (
-              <div
-                key={s.label}
-                className="p-4 bg-card"
-                style={{ border: '1px solid rgba(0,255,225,0.2)' }}
-              >
-                <div className="text-base text-muted mb-1">{s.sym}</div>
-                <div
-                  className="text-2xl font-bold text-accent"
-                  style={{ textShadow: '0 0 10px rgba(0,255,225,0.4)' }}
-                >
+              <div key={s.label} style={{ background: '#181612', border: '1px solid rgba(212,168,71,0.1)', padding: '18px 20px' }}>
+                <div style={{ color: 'rgba(212,168,71,0.35)', fontSize: '16px', marginBottom: '8px' }}>{s.sym}</div>
+                <div style={{ fontFamily: 'Georgia, serif', fontSize: '28px', color: '#d4a847', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                   {s.value.toLocaleString()}
                 </div>
-                <div className="text-xs text-dim-cyan mt-0.5 tracking-widest">{s.label}</div>
+                <div style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(245,240,232,0.25)', letterSpacing: '0.15em', textTransform: 'uppercase', marginTop: '6px' }}>
+                  {s.label}
+                </div>
               </div>
             ))}
           </div>
 
           {/* Activity chart */}
           {stats.activity.length > 0 && (
-            <NeonSection title="// RESEARCH_ACTIVITY (14d)">
+            <GoldSection title="Research Activity — 14 Days">
               <div className="flex items-end gap-0.5 h-14">
                 {stats.activity.map(a => (
                   <div key={a.date} className="flex-1 flex flex-col items-center group relative">
                     <div
-                      className="w-full transition-all cursor-default"
                       style={{
+                        width: '100%',
                         height: `${Math.max(3, (a.count / maxActivity) * 48)}px`,
-                        background: '#00ffe1',
-                        boxShadow: a.count > 0 ? '0 0 4px #00ffe1' : 'none',
-                        opacity: a.count > 0 ? 0.8 : 0.15,
+                        background: '#d4a847',
+                        opacity: a.count > 0 ? 0.7 : 0.1,
+                        transition: 'opacity 0.2s',
                       }}
                     />
-                    <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs bg-card px-1 text-accent opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-mono"
-                      style={{ border: '1px solid rgba(0,255,225,0.2)' }}>
+                    <span
+                      className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"
+                      style={{ fontSize: '10px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: '#d4a847', background: '#181612', border: '1px solid rgba(212,168,71,0.2)', padding: '1px 6px' }}
+                    >
                       {a.date}: {a.count}
                     </span>
                   </div>
                 ))}
               </div>
-            </NeonSection>
+            </GoldSection>
           )}
 
           {/* Top tags */}
           {stats.top_tags.length > 0 && (
-            <NeonSection title="// TOP_TAGS">
-              <div className="flex flex-col gap-2">
+            <GoldSection title="Top Tags">
+              <div className="flex flex-col gap-2.5">
                 {stats.top_tags.map(t => {
                   const pct = (t.count / (stats.top_tags[0]?.count || 1)) * 100
-                  const filled = Math.round(pct / 10)
                   return (
-                    <div key={t.tag} className="flex items-center gap-2 text-xs">
-                      <span className="text-muted w-20 truncate">{t.tag}</span>
-                      <span className="text-accent">{'█'.repeat(filled)}</span>
-                      <span className="text-border">{'░'.repeat(10 - filled)}</span>
-                      <span className="text-dim-cyan ml-1">{t.count}</span>
+                    <div key={t.tag} className="flex items-center gap-3">
+                      <span style={{ fontSize: '12px', color: 'rgba(245,240,232,0.45)', fontFamily: "'Segoe UI', system-ui, sans-serif", width: '80px', flexShrink: 0 }} className="truncate">{t.tag}</span>
+                      <div style={{ flex: 1, height: '2px', background: 'rgba(212,168,71,0.08)', borderRadius: '1px', overflow: 'hidden' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: '#d4a847', opacity: 0.6 }} />
+                      </div>
+                      <span style={{ fontSize: '11px', fontFamily: 'Georgia, serif', color: 'rgba(212,168,71,0.5)', minWidth: '20px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{t.count}</span>
                     </div>
                   )
                 })}
               </div>
-            </NeonSection>
+            </GoldSection>
           )}
 
           {/* Recent */}
           {stats.recent.length > 0 && (
-            <NeonSection title="// RECENT_RESEARCH">
-              <ul className="flex flex-col gap-1.5">
+            <GoldSection title="Recent Research">
+              <ul className="flex flex-col gap-2.5">
                 {stats.recent.map((r, i) => (
-                  <li key={i} className="flex items-center gap-2 text-xs">
-                    <span className="text-magenta shrink-0">{String(i + 1).padStart(2, '0')}.</span>
-                    <span className="text-muted flex-1 truncate">{r.title}</span>
-                    <span className="text-dim-cyan shrink-0">{new Date(r.updated_at).toLocaleDateString()}</span>
+                  <li key={i} className="flex items-start gap-3">
+                    <span style={{ fontSize: '12px', fontFamily: 'Georgia, serif', color: 'rgba(212,168,71,0.4)', fontStyle: 'italic', flexShrink: 0, minWidth: '18px' }}>
+                      {['I','II','III','IV','V','VI','VII','VIII','IX','X'][i] ?? String(i + 1)}
+                    </span>
+                    <span style={{ fontSize: '12px', color: 'rgba(245,240,232,0.5)', fontFamily: "'Segoe UI', system-ui, sans-serif", flex: 1 }} className="truncate">{r.title}</span>
+                    <span style={{ fontSize: '10px', color: 'rgba(212,168,71,0.3)', fontFamily: "'Segoe UI', system-ui, sans-serif", flexShrink: 0 }}>
+                      {new Date(r.updated_at).toLocaleDateString()}
+                    </span>
                   </li>
                 ))}
               </ul>
-            </NeonSection>
+            </GoldSection>
           )}
         </div>
       )}

@@ -12,7 +12,8 @@ if not GROQ_API_KEY:
         "Then copy .env.example to .env and add it."
     )
 
-MODEL = os.getenv("MODEL", "llama-3.3-70b-versatile")
+MODEL      = os.getenv("MODEL",      "llama-3.3-70b-versatile")
+FAST_MODEL = os.getenv("FAST_MODEL", "llama-3.1-8b-instant")
 
 _DATA_DIR = os.getenv("DATA_DIR", ".")
 CHECKPOINT_DB = os.getenv("CHECKPOINT_DB", os.path.join(_DATA_DIR, "checkpoints.db"))

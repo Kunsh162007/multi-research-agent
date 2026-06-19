@@ -23,51 +23,54 @@ export default function Login({ onLogin }: Props) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface">
-      <div className="flex flex-col items-center gap-8 w-full max-w-sm px-6">
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#0c0c0c' }}>
+      <div className="flex flex-col items-center gap-7 w-full max-w-sm px-6">
 
         {/* Logo */}
         <div className="text-center">
-          <div
-            className="text-5xl font-bold font-mono text-accent tracking-widest mb-2"
-            style={{ textShadow: '0 0 20px #00ffe1, 0 0 40px rgba(0,255,225,0.5)' }}
-          >
-            RSRCH.AI
+          <div style={{ color: '#d4a847', fontSize: '26px', letterSpacing: '0.12em', marginBottom: '10px' }}>
+            ◆ RESEARCH AI
           </div>
-          <div className="text-xs font-mono text-magenta tracking-widest">
-            // INTELLIGENCE TERMINAL v2.4
-          </div>
-          <div className="text-xs font-mono text-dim-cyan mt-1 tracking-wide">
-            SELF-RAG · LANGRAPH · KNOWLEDGE MONITOR
-          </div>
+          <div style={{
+            height: '1px', width: '200px', margin: '0 auto 12px',
+            background: 'linear-gradient(90deg, transparent, #d4a847, transparent)',
+            opacity: 0.45,
+          }} />
+          <p style={{ fontSize: '11px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.5)', letterSpacing: '0.18em', textTransform: 'uppercase' }}>
+            Agentic Research Intelligence
+          </p>
         </div>
 
-        {/* Feature list */}
+        {/* Capabilities */}
         <div
-          className="w-full p-4 bg-card font-mono"
-          style={{ border: '1px solid rgba(0,255,225,0.2)' }}
+          className="w-full"
+          style={{ background: '#181612', border: '1px solid rgba(212,168,71,0.12)', padding: '20px 24px' }}
         >
-          <p className="text-xs text-dim-cyan tracking-widest mb-3">// CAPABILITIES</p>
+          <p style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '14px' }}>
+            Capabilities
+          </p>
           {[
-            'arXiv + Web + Semantic Scholar search',
             'Self-RAG with adaptive retrieval',
+            'arXiv · Web · Semantic Scholar · CrossRef',
             'Token-by-token report streaming',
             'Knowledge monitor & auto-sync',
-            'Export MD / PDF / BibTeX',
+            'Export Markdown / PDF / BibTeX',
           ].map(f => (
-            <div key={f} className="flex items-center gap-2 mb-1.5 text-xs">
-              <span className="text-magenta">▶</span>
-              <span className="text-muted">{f}</span>
+            <div key={f} className="flex items-start gap-3 mb-2.5">
+              <span style={{ color: 'rgba(212,168,71,0.5)', fontSize: '10px', marginTop: '2px', flexShrink: 0 }}>◆</span>
+              <span style={{ fontSize: '13px', color: 'rgba(245,240,232,0.55)', lineHeight: 1.5 }}>{f}</span>
             </div>
           ))}
         </div>
 
-        {/* Sign-in */}
+        {/* Sign-in card */}
         <div
-          className="w-full p-6 bg-card flex flex-col items-center gap-4"
-          style={{ border: '1px solid rgba(0,255,225,0.25)', boxShadow: '0 0 30px rgba(0,255,225,0.08)' }}
+          className="w-full flex flex-col items-center gap-4"
+          style={{ background: '#181612', border: '1px solid rgba(212,168,71,0.2)', padding: '28px 24px' }}
         >
-          <p className="text-xs font-mono text-dim-cyan tracking-widest">// AUTHENTICATE</p>
+          <p style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+            Authenticate
+          </p>
           {loading ? (
             <div className="flex flex-col items-center gap-3 py-2">
               <div className="flex gap-1.5">
@@ -75,7 +78,9 @@ export default function Login({ onLogin }: Props) {
                 <span className="w-2 h-2 bg-accent typing-dot" />
                 <span className="w-2 h-2 bg-accent typing-dot" />
               </div>
-              <p className="text-xs font-mono text-dim-cyan">AUTHENTICATING...</p>
+              <p style={{ fontSize: '11px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.5)', letterSpacing: '0.1em' }}>
+                Authenticating…
+              </p>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3 w-full">
@@ -88,20 +93,20 @@ export default function Login({ onLogin }: Props) {
                 shape="rectangular"
                 width="280"
               />
-              <p className="text-xs font-mono text-dim-cyan text-center">
-                &gt; sign in with Google OAuth to continue
+              <p style={{ fontSize: '11px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(245,240,232,0.2)', textAlign: 'center' }}>
+                Sign in with Google to continue
               </p>
             </div>
           )}
           {error && (
-            <p className="text-xs font-mono text-magenta text-center">
-              [ERR] {error}
+            <p style={{ fontSize: '12px', color: 'rgba(200,80,60,0.8)', textAlign: 'center', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+              {error}
             </p>
           )}
         </div>
 
-        <p className="text-xs font-mono text-dim-cyan text-center">
-          // session persists on refresh · closes on tab exit
+        <p style={{ fontSize: '10px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(245,240,232,0.15)', textAlign: 'center', letterSpacing: '0.05em' }}>
+          Session persists on refresh · closes on tab exit
         </p>
       </div>
     </div>

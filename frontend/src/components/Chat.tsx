@@ -25,11 +25,18 @@ const DEFAULT_CONSTRAINTS: ResearchConstraints = {
 }
 
 const RAG_TOGGLES: [keyof ResearchConstraints, string, string][] = [
-  ['use_adaptive', 'Adaptive',   'Auto-adjusts search depth by query complexity'],
-  ['use_reflexion','Reflexion',  'Self-critiques & retries when quality is low'],
-  ['use_hyde',     'HyDE',       'Generates a hypothetical answer to anchor searches'],
-  ['use_rag_fusion','RAG Fusion','Runs multiple queries, merges via rank scoring'],
-  ['use_storm',    'STORM',      'Expert personas each contribute unique angles'],
+  ['use_adaptive',  'Adaptive',   'Auto-adjusts search depth by query complexity'],
+  ['use_reflexion', 'Reflexion',  'Self-critiques & retries when quality is low'],
+  ['use_hyde',      'HyDE',       'Generates a hypothetical answer to anchor searches'],
+  ['use_rag_fusion','RAG Fusion', 'Runs multiple queries, merges via rank scoring'],
+  ['use_storm',     'STORM',      'Expert personas each contribute unique angles'],
+]
+
+const SUGGESTIONS = [
+  'Latest advances in RLHF for large language models',
+  'Mamba vs Transformers: architecture comparison',
+  'State of multimodal AI in 2025',
+  'RAG vs fine-tuning: when to use each',
 ]
 
 export default function Chat({ onConversationCreated, loadThreadId }: Props) {
@@ -44,7 +51,6 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
   const { state, start, reset } = useSSE()
   const [activeAssistantId, setActiveAssistantId] = useState<string | null>(null)
 
-  // Load history when a thread is selected from sidebar
   useEffect(() => {
     if (!loadThreadId) return
     reset()
@@ -67,31 +73,21 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
       .catch(console.error)
   }, [loadThreadId])
 
-  // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, state.events, state.report])
 
-  // Sync streaming state into the active message
   useEffect(() => {
     if (!activeAssistantId) return
     setMessages(prev =>
       prev.map(m =>
         m.id === activeAssistantId
-          ? {
-              ...m,
-              events: state.events,
-              report: state.report,
-              isStreaming: state.isStreaming,
-              content: state.report,
-              thread_id: state.threadId ?? m.thread_id,
-            }
+          ? { ...m, events: state.events, report: state.report, isStreaming: state.isStreaming, content: state.report, thread_id: state.threadId ?? m.thread_id }
           : m,
       ),
     )
   }, [state.events, state.report, state.isStreaming, state.threadId, activeAssistantId])
 
-  // Mark done, capture validation, refresh sidebar
   useEffect(() => {
     if (!state.isStreaming && activeAssistantId && state.threadId) {
       const finalEvent = state.events.find((e): e is FinalEvent => e.type === 'final')
@@ -120,7 +116,6 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
     ])
     setInput('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
-
     await start(q, audience, undefined, constraints)
   }
 
@@ -147,28 +142,21 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
   const isEmpty = messages.length === 0
 
   function fmtTime(d: Date) {
-    return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
   }
 
   return (
-    <div className="flex flex-col h-full bg-surface">
-      {shareThreadId && (
-        <ShareModal threadId={shareThreadId} onClose={() => setShareThreadId(null)} />
-      )}
+    <div className="flex flex-col h-full" style={{ background: '#0c0c0c' }}>
+      {shareThreadId && <ShareModal threadId={shareThreadId} onClose={() => setShareThreadId(null)} />}
 
-      {/* Header bar */}
-      <div
-        className="px-6 py-3 flex items-center justify-between shrink-0"
-        style={{ borderBottom: '1px solid rgba(0,255,225,0.15)' }}
-      >
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono text-accent">
-            <span className="status-dot" />
-            RSRCH.ENGINE.SESSION
-          </div>
-          <div className="text-xs font-mono text-dim-cyan mt-0.5">
-            SELF-RAG ACTIVE · GROQ BACKEND
-          </div>
+      {/* Header */}
+      <div style={{ padding: '20px 36px 16px', borderBottom: '1px solid rgba(212,168,71,0.1)' }}>
+        <div style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.5)', letterSpacing: '0.25em', textTransform: 'uppercase', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span className="status-dot" />
+          Active Research Session
+        </div>
+        <div style={{ fontSize: '10px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.25)', letterSpacing: '0.05em', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+          ══════════════════════════════════ Self-RAG · Groq Backend
         </div>
       </div>
 
@@ -176,34 +164,45 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
       {isEmpty && (
         <div className="flex-1 flex flex-col items-center justify-center gap-8 p-8">
           <div className="text-center">
-            <div
-              className="text-4xl font-bold font-mono text-accent tracking-widest mb-1"
-              style={{ textShadow: '0 0 20px #00ffe1, 0 0 40px rgba(0,255,225,0.5)' }}
-            >
-              RSRCH.AI
+            <div style={{ color: '#d4a847', fontSize: '32px', letterSpacing: '0.12em', marginBottom: '10px' }}>
+              ◆ RESEARCH AI
             </div>
-            <div className="text-xs font-mono text-magenta tracking-widest mb-4">
-              // INTELLIGENCE TERMINAL — READY
-            </div>
-            <div className="text-xs font-mono text-muted">
-              <span className="text-magenta">$&gt;</span> initialize query to begin research...
-              <span className="cursor-blink" />
-            </div>
+            <div style={{
+              height: '1px', width: '240px', margin: '0 auto 14px',
+              background: 'linear-gradient(90deg, transparent, #d4a847, transparent)',
+              opacity: 0.4,
+            }} />
+            <p style={{ fontSize: '13px', color: 'rgba(245,240,232,0.3)', fontStyle: 'italic' }}>
+              Begin your inquiry below
+            </p>
           </div>
           <div className="flex flex-wrap gap-2 justify-center max-w-xl">
-            {[
-              'Latest advances in RLHF for LLMs',
-              'Mamba vs Transformers architecture comparison',
-              'State of multimodal AI in 2025',
-              'RAG vs fine-tuning: when to use each',
-            ].map(q => (
+            {SUGGESTIONS.map(q => (
               <button
                 key={q}
                 onClick={() => setInput(q)}
-                className="text-xs font-mono px-3 py-1.5 text-dim-cyan hover:text-accent transition-colors"
-                style={{ border: '1px solid #0d2e2a' }}
+                style={{
+                  fontSize: '12px',
+                  fontFamily: "'Segoe UI', system-ui, sans-serif",
+                  padding: '7px 14px',
+                  border: '1px solid rgba(212,168,71,0.12)',
+                  background: 'rgba(212,168,71,0.03)',
+                  color: 'rgba(245,240,232,0.4)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => {
+                  const el = e.currentTarget as HTMLElement
+                  el.style.borderColor = 'rgba(212,168,71,0.3)'
+                  el.style.color = 'rgba(245,240,232,0.7)'
+                }}
+                onMouseLeave={e => {
+                  const el = e.currentTarget as HTMLElement
+                  el.style.borderColor = 'rgba(212,168,71,0.12)'
+                  el.style.color = 'rgba(245,240,232,0.4)'
+                }}
               >
-                &gt; {q}
+                {q}
               </button>
             ))}
           </div>
@@ -212,42 +211,40 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
 
       {/* Messages */}
       {!isEmpty && (
-        <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+        <div className="flex-1 overflow-y-auto flex flex-col gap-6" style={{ padding: '28px 36px' }}>
           {messages.map(msg => (
-            <div key={msg.id} className="flex flex-col gap-1">
+            <div key={msg.id} className="flex flex-col gap-2">
               {msg.role === 'user' ? (
                 <>
-                  <div className="text-xs font-mono text-magenta tracking-wider">
-                    [USR] · {fmtTime(msg.timestamp)}
+                  <div style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    ◇ &nbsp; Researcher · {fmtTime(msg.timestamp)}
                   </div>
-                  <div
-                    className="px-4 py-3 text-xs font-mono leading-relaxed"
-                    style={{
-                      border: '1px solid #ff2d78',
-                      boxShadow: '0 0 12px rgba(255,45,120,0.2), inset 0 0 8px rgba(255,45,120,0.03)',
-                      color: '#ff8ab0',
-                      maxWidth: '560px',
-                      whiteSpace: 'pre-wrap',
-                    }}
-                  >
+                  <div style={{
+                    maxWidth: '560px',
+                    borderLeft: '2px solid rgba(212,168,71,0.45)',
+                    padding: '12px 18px',
+                    background: 'rgba(212,168,71,0.03)',
+                    fontSize: '14px',
+                    lineHeight: 1.75,
+                    color: 'rgba(245,240,232,0.75)',
+                    fontStyle: 'italic',
+                    whiteSpace: 'pre-wrap',
+                  }}>
                     {msg.content}
                   </div>
                 </>
               ) : (
                 <>
-                  <div
-                    className="text-xs font-mono tracking-wider"
-                    style={{ color: '#00ffe1', textShadow: '0 0 6px rgba(0,255,225,0.4)' }}
-                  >
-                    [AI] rsrch.engine · {fmtTime(msg.timestamp)}
+                  <div style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.5)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    ◆ &nbsp; Research AI · {fmtTime(msg.timestamp)}
+                    {!msg.isStreaming && msg.thread_id && (
+                      <span style={{ color: 'rgba(245,240,232,0.15)', marginLeft: '10px', letterSpacing: '0.05em', fontSize: '8px' }}>
+                        {msg.thread_id.slice(0, 8)}
+                      </span>
+                    )}
                   </div>
-                  <div
-                    className="p-4 bg-card"
-                    style={{
-                      border: '1px solid #00ffe1',
-                      boxShadow: '0 0 20px rgba(0,255,225,0.1), inset 0 0 20px rgba(0,255,225,0.02)',
-                    }}
-                  >
+
+                  <div style={{ background: '#181612', border: '1px solid rgba(212,168,71,0.12)', padding: '24px 28px' }}>
                     {msg.isStreaming || msg.events.length > 0 ? (
                       <StreamRenderer
                         events={msg.events}
@@ -259,7 +256,7 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
                       />
                     ) : msg.content ? (
                       <div className="report-body">
-                        <p style={{ color: '#4a7870', lineHeight: '1.7', fontSize: '0.8rem', whiteSpace: 'pre-wrap' }}>
+                        <p style={{ color: 'rgba(245,240,232,0.65)', lineHeight: '1.85', fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>
                           {msg.content}
                         </p>
                       </div>
@@ -268,25 +265,33 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
                     {/* Action bar */}
                     {msg.thread_id && !msg.isStreaming && (
                       <div
-                        className="flex items-center gap-2 mt-3 pt-3 flex-wrap font-mono"
-                        style={{ borderTop: '1px solid rgba(0,255,225,0.1)' }}
+                        className="flex items-center gap-3 mt-4 pt-4 flex-wrap"
+                        style={{ borderTop: '1px solid rgba(212,168,71,0.08)' }}
                       >
                         <ExportButton threadId={msg.thread_id} />
                         <button
                           onClick={() => setShareThreadId(msg.thread_id!)}
-                          className="text-xs text-dim-cyan hover:text-accent transition-colors px-2 py-1"
-                          style={{ border: '1px solid #0d2e2a' }}
+                          style={{
+                            fontSize: '10px',
+                            fontFamily: "'Segoe UI', system-ui, sans-serif",
+                            letterSpacing: '0.1em',
+                            textTransform: 'uppercase',
+                            border: '1px solid rgba(212,168,71,0.2)',
+                            color: 'rgba(212,168,71,0.5)',
+                            background: 'transparent',
+                            padding: '4px 12px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.color = '#d4a847'; el.style.borderColor = 'rgba(212,168,71,0.5)' }}
+                          onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.color = 'rgba(212,168,71,0.5)'; el.style.borderColor = 'rgba(212,168,71,0.2)' }}
                         >
-                          [SHARE]
+                          Share
                         </button>
-                        <span className="text-xs text-dim-cyan font-mono ml-auto">
-                          thread_{msg.thread_id.slice(0, 8)}
-                        </span>
                       </div>
                     )}
                   </div>
 
-                  {/* Follow-up questions */}
                   {!msg.isStreaming && (msg.validation?.follow_up_questions?.length ?? 0) > 0 && (
                     <FollowUpQuestions
                       questions={msg.validation!.follow_up_questions!}
@@ -299,83 +304,70 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
           ))}
 
           {state.error && (
-            <div
-              className="px-4 py-3 text-xs font-mono"
-              style={{ border: '1px solid #ff2d78', color: '#ff8ab0' }}
-            >
-              [ERR] {state.error}
+            <div style={{ padding: '12px 18px', border: '1px solid rgba(200,80,60,0.3)', color: 'rgba(200,80,60,0.8)', fontSize: '13px' }}>
+              {state.error}
             </div>
           )}
-
           <div ref={bottomRef} />
         </div>
       )}
 
       {/* Input area */}
-      <div
-        className="px-6 py-4 bg-surface shrink-0"
-        style={{ borderTop: '1px solid rgba(0,255,225,0.15)' }}
-      >
-        <div className="max-w-4xl mx-auto">
-          {/* Advanced RAG options */}
+      <div style={{ padding: '14px 36px 22px', borderTop: '1px solid rgba(212,168,71,0.1)', background: '#0c0c0c' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+
+          {/* Advanced RAG panel */}
           {showAdvanced && (
-            <div
-              className="mb-3 p-4 bg-card font-mono"
-              style={{ border: '1px solid rgba(0,255,225,0.2)' }}
-            >
-              <p className="text-xs text-dim-cyan tracking-widest mb-3">// RAG_OPTIONS</p>
-              <div className="grid grid-cols-2 gap-2 mb-3">
+            <div style={{ marginBottom: '12px', padding: '16px 20px', background: '#181612', border: '1px solid rgba(212,168,71,0.12)' }}>
+              <p style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '12px' }}>
+                RAG Options
+              </p>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3 mb-4">
                 {RAG_TOGGLES.map(([key, label, desc]) => (
                   <button
                     key={key}
                     type="button"
                     onClick={() => toggleConstraint(key)}
-                    className="flex items-start gap-2 text-left cursor-pointer group"
+                    className="flex items-start gap-2.5 text-left cursor-pointer"
                   >
-                    <span
-                      className="text-xs shrink-0 mt-0.5 font-mono"
-                      style={{
-                        color: constraints[key] ? '#00ffe1' : '#1e4a44',
-                        textShadow: constraints[key] ? '0 0 6px #00ffe1' : 'none',
-                      }}
-                    >
-                      {constraints[key] ? '[ON]' : '[--]'}
+                    <span style={{
+                      fontSize: '10px',
+                      fontFamily: "'Segoe UI', system-ui, sans-serif",
+                      color: constraints[key] ? '#d4a847' : 'rgba(212,168,71,0.2)',
+                      marginTop: '1px',
+                      flexShrink: 0,
+                      letterSpacing: '0.05em',
+                    }}>
+                      {constraints[key] ? '◆' : '◇'}
                     </span>
                     <div>
-                      <p className="text-xs font-mono" style={{ color: constraints[key] ? '#00ffe1' : '#4a6b67' }}>
-                        {label.toUpperCase()}
+                      <p style={{ fontSize: '11px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: constraints[key] ? '#d4a847' : 'rgba(245,240,232,0.35)', letterSpacing: '0.08em' }}>
+                        {label}
                       </p>
-                      <p className="text-xs text-dim-cyan leading-tight">{desc}</p>
+                      <p style={{ fontSize: '11px', color: 'rgba(245,240,232,0.25)', lineHeight: 1.4, marginTop: '1px' }}>
+                        {desc}
+                      </p>
                     </div>
                   </button>
                 ))}
               </div>
-              <div
-                className="flex items-center gap-4 pt-2"
-                style={{ borderTop: '1px solid rgba(0,255,225,0.1)' }}
-              >
-                <label className="flex items-center gap-2 text-xs font-mono text-dim-cyan">
-                  MAX_ITER:
+              <div className="flex items-center gap-6" style={{ paddingTop: '12px', borderTop: '1px solid rgba(212,168,71,0.08)' }}>
+                <label className="flex items-center gap-2" style={{ fontSize: '10px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.1em' }}>
+                  Max iterations
                   <input
-                    type="number"
-                    min={1}
-                    max={10}
+                    type="number" min={1} max={10}
                     value={constraints.max_iterations ?? 3}
                     onChange={e => setConstraints(prev => ({ ...prev, max_iterations: Math.max(1, Math.min(10, Number(e.target.value))) }))}
-                    className="w-10 text-xs bg-transparent text-accent text-center focus:outline-none"
-                    style={{ border: '1px solid #0d2e2a' }}
+                    style={{ width: '36px', background: 'transparent', border: '1px solid rgba(212,168,71,0.2)', color: '#d4a847', textAlign: 'center', fontSize: '11px', outline: 'none', padding: '2px' }}
                   />
                 </label>
-                <label className="flex items-center gap-2 text-xs font-mono text-dim-cyan">
-                  QUALITY_TARGET:
+                <label className="flex items-center gap-2" style={{ fontSize: '10px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.1em' }}>
+                  Quality target
                   <input
-                    type="number"
-                    min={0}
-                    max={100}
+                    type="number" min={0} max={100}
                     value={constraints.quality_target ?? 75}
                     onChange={e => setConstraints(prev => ({ ...prev, quality_target: Math.max(0, Math.min(100, Number(e.target.value))) }))}
-                    className="w-12 text-xs bg-transparent text-accent text-center focus:outline-none"
-                    style={{ border: '1px solid #0d2e2a' }}
+                    style={{ width: '42px', background: 'transparent', border: '1px solid rgba(212,168,71,0.2)', color: '#d4a847', textAlign: 'center', fontSize: '11px', outline: 'none', padding: '2px' }}
                   />
                 </label>
               </div>
@@ -383,49 +375,74 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
           )}
 
           {/* Controls row */}
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2.5">
             <button
               onClick={() => setShowAdvanced(v => !v)}
-              className={`text-xs font-mono px-2 py-1 transition-colors ${
-                showAdvanced ? 'text-accent' : 'text-dim-cyan hover:text-accent'
-              }`}
-              style={{ border: '1px solid rgba(0,255,225,0.15)' }}
+              style={{
+                fontSize: '10px',
+                fontFamily: "'Segoe UI', system-ui, sans-serif",
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                border: '1px solid rgba(212,168,71,0.15)',
+                color: showAdvanced ? '#d4a847' : 'rgba(245,240,232,0.3)',
+                background: showAdvanced ? 'rgba(212,168,71,0.05)' : 'transparent',
+                padding: '4px 12px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
             >
-              {showAdvanced ? '[ PARAMS ▴ ]' : '[ PARAMS ▾ ]'}
+              {showAdvanced ? '▴ Options' : '▾ Options'}
             </button>
-            <div className="flex items-center gap-1 font-mono">
-              <span className="text-xs text-dim-cyan mr-1">// MODE:</span>
+            <div className="flex items-center gap-1.5">
+              <span style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.35)', letterSpacing: '0.15em', textTransform: 'uppercase', marginRight: '6px' }}>
+                Audience
+              </span>
               {AUDIENCES.map(a => (
                 <button
                   key={a}
                   onClick={() => setAudience(a)}
-                  className="text-xs px-2 py-0.5 transition-all font-mono"
                   style={{
-                    border: `1px solid ${audience === a ? '#00ffe1' : '#0d2e2a'}`,
-                    color: audience === a ? '#00ffe1' : '#4a6b67',
-                    boxShadow: audience === a ? '0 0 8px rgba(0,255,225,0.3)' : 'none',
+                    fontSize: '10px',
+                    fontFamily: "'Segoe UI', system-ui, sans-serif",
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    padding: '4px 14px',
+                    border: `1px solid ${audience === a ? 'rgba(212,168,71,0.45)' : 'rgba(245,240,232,0.1)'}`,
+                    color: audience === a ? 'rgba(212,168,71,0.8)' : 'rgba(245,240,232,0.25)',
+                    background: audience === a ? 'rgba(212,168,71,0.05)' : 'transparent',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
                   }}
                 >
-                  {a.toUpperCase()}
+                  {a}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Textarea + send */}
+          {/* Textarea row */}
           <div
-            className="flex items-end gap-3 px-4 py-3"
-            style={{
-              border: '1px solid #00ffe1',
-              boxShadow: '0 0 12px rgba(0,255,225,0.1)',
-            }}
+            className="gold-input-row flex items-end gap-3"
+            style={{ padding: '10px 0' }}
           >
-            <span className="text-magenta font-mono text-sm shrink-0 self-center">$&gt;</span>
+            <span style={{ color: 'rgba(212,168,71,0.4)', fontSize: '14px', alignSelf: 'center', flexShrink: 0 }}>◆</span>
             <textarea
               ref={textareaRef}
-              className="flex-1 bg-transparent text-accent placeholder-dim-cyan text-xs resize-none focus:outline-none leading-relaxed min-h-[20px] max-h-36 font-mono"
-              style={{ caretColor: '#00ffe1' }}
-              placeholder="enter query..."
+              style={{
+                flex: 1,
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: 'rgba(245,240,232,0.8)',
+                fontSize: '14px',
+                resize: 'none',
+                fontFamily: 'Georgia, serif',
+                lineHeight: 1.6,
+                caretColor: '#d4a847',
+                minHeight: '22px',
+                maxHeight: '144px',
+              }}
+              placeholder="Continue your inquiry…"
               rows={1}
               value={input}
               onChange={handleInputChange}
@@ -435,27 +452,30 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
             <button
               onClick={() => handleSubmit()}
               disabled={!input.trim() || state.isStreaming}
-              className="shrink-0 font-mono text-xs px-4 py-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               style={{
-                border: '1px solid #ff2d78',
-                color: '#ff2d78',
-                boxShadow: '0 0 8px rgba(255,45,120,0.3)',
+                flexShrink: 0,
+                fontSize: '10px',
+                fontFamily: "'Segoe UI', system-ui, sans-serif",
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                border: '1px solid rgba(212,168,71,0.35)',
+                color: '#d4a847',
+                background: 'rgba(212,168,71,0.06)',
+                padding: '8px 18px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                opacity: (!input.trim() || state.isStreaming) ? 0.4 : 1,
               }}
             >
               {state.isStreaming ? (
-                <span className="flex gap-0.5">
-                  <span className="w-1 h-1 bg-magenta typing-dot" />
-                  <span className="w-1 h-1 bg-magenta typing-dot" />
-                  <span className="w-1 h-1 bg-magenta typing-dot" />
+                <span className="flex gap-1">
+                  <span className="w-1.5 h-1.5 bg-accent typing-dot" />
+                  <span className="w-1.5 h-1.5 bg-accent typing-dot" />
+                  <span className="w-1.5 h-1.5 bg-accent typing-dot" />
                 </span>
-              ) : (
-                'EXEC →'
-              )}
+              ) : 'Submit ◆'}
             </button>
           </div>
-          <p className="text-xs font-mono text-dim-cyan text-center mt-2">
-            // SELF-RAG · LANGRAPH · GROQ_BACKEND
-          </p>
         </div>
       </div>
     </div>

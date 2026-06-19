@@ -1,5 +1,5 @@
 import json, logging
-from src.llm import get_llm
+from src.llm import get_llm, get_fast_llm
 from src.state import ResearchState
 from src.tools import TOOL_REGISTRY
 
@@ -11,10 +11,15 @@ Return ONLY valid JSON:
 {{"clarified_query":"A self-contained specific version","research_angles":["angle 1","angle 2","angle 3","angle 4"]}}
 Produce 3-5 distinct angles that together give complete coverage."""
 
-_RETRIEVE = """You are an autonomous research agent. Choose tools: web_search, arxiv_search, github_search.
+_REWRITE_QUERY = """Rewrite this research query to be clearer and more searchable.
+Fix spelling, expand abbreviations, make implicit context explicit. Keep it concise.
+Query: {query}
+Rewritten query (plain text only):"""
+
+_RETRIEVE = """You are an autonomous research agent. Choose tools: web_search, arxiv_search, github_search, wikipedia_search, semantic_scholar_search, crossref_search.
 Query: {query} | Angles: {angles} | Findings: {num_findings} | Iteration: {iteration}
 {reflection_hint}
-Pick 1-3 tool calls addressing least-covered angles.
+Pick 1-3 tool calls addressing least-covered angles. Use academic sources (arxiv, semantic_scholar, crossref) for research topics.
 Return ONLY valid JSON: {{"tool_calls":[{{"tool":"tool_name","query":"search string"}}]}}"""
 
 _GENERATE = """Write a draft answer grounded ONLY in findings. Use inline citations [1],[2]...
@@ -53,9 +58,37 @@ def _llm_json(prompt, fallback):
     return fallback
 
 
+def _rewrite_query(query: str) -> str:
+    try:
+        response = get_fast_llm(temperature=0.0).invoke(_REWRITE_QUERY.format(query=query))
+        rewritten = response.content.strip().strip('"').strip("'")
+        return rewritten if rewritten else query
+    except Exception:
+        return query
+
+
+def _jaccard_sim(a: str, b: str) -> float:
+    sa, sb = set(a.lower().split()), set(b.lower().split())
+    if not sa or not sb:
+        return 0.0
+    return len(sa & sb) / len(sa | sb)
+
+
+def _dedup_docs(docs: list, threshold: float = 0.75) -> list:
+    seen_texts: list = []
+    result = []
+    for doc in docs:
+        text = doc.get("text", "")
+        if not any(_jaccard_sim(text, t) > threshold for t in seen_texts):
+            seen_texts.append(text)
+            result.append(doc)
+    return result
+
+
 def enhance(state: ResearchState) -> dict:
-    result = _llm_json(_ENHANCE.format(query=state["query"]),
-        fallback={"clarified_query": state["query"], "research_angles": [state["query"]]})
+    query = _rewrite_query(state["query"])
+    result = _llm_json(_ENHANCE.format(query=query),
+        fallback={"clarified_query": query, "research_angles": [query]})
 
     base = {
         "clarified_query": result.get("clarified_query", state["query"]),
@@ -119,7 +152,18 @@ def retrieve(state: ResearchState) -> dict:
         except Exception as e:
             logger.error(f"Tool {call.get('tool')} failed: {e}")
 
-    return {"retrieved_docs": all_docs}
+    # Multi-query expansion: add semantically varied query variations
+    try:
+        from src.advanced_rag import multi_query_expand
+        for q in multi_query_expand(clarified, state.get("research_angles", []))[:2]:
+            try:
+                all_docs.extend(TOOL_REGISTRY["web_search"](q))
+            except Exception as e:
+                logger.error(f"Multi-query expansion failed for '{q}': {e}")
+    except Exception as e:
+        logger.warning(f"Multi-query expansion skipped: {e}")
+
+    return {"retrieved_docs": _dedup_docs(all_docs)}
 
 
 def generate(state: ResearchState) -> dict:

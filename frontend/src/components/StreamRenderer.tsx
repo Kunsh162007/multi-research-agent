@@ -12,27 +12,19 @@ interface Props {
 }
 
 const NODE_LABELS: Record<string, string> = {
-  enhance:          'QUERY_ENHANCE',
-  decide_retrieval: 'DECIDE_RETRIEVAL',
-  retrieve:         'SRC_RETRIEVAL',
-  grade_relevance:  'GRADE_RELEVANCE',
-  generate:         'RPT_GENERATION',
-  grade_answer:     'GRADE_ANSWER',
-  reflect:          'REFLEXION',
-  synthesize:       'SYNTHESIZE',
-  validate:         'VALIDATION',
-  resume:           'RESUME',
+  enhance:          'Query Decomposition',
+  decide_retrieval: 'Retrieval Decision',
+  retrieve:         'Source Retrieval',
+  grade_relevance:  'Evidence Grading',
+  generate:         'Report Generation',
+  grade_answer:     'Quality Check',
+  reflect:          'Reflexion',
+  synthesize:       'Synthesis',
+  validate:         'Validation',
+  resume:           'Resume',
 }
 
-function asciiBar(val: number, total = 10): { filled: string; empty: string } {
-  const f = Math.round((val / 100) * total)
-  return { filled: '█'.repeat(f), empty: '░'.repeat(total - f) }
-}
-
-function padLabel(s: string, width = 20): string {
-  if (s.length >= width) return s
-  return s + ' ' + '.'.repeat(width - s.length - 1)
-}
+const ROMANS = ['I','II','III','IV','V','VI','VII','VIII','IX','X']
 
 export default function StreamRenderer({ events, report, isStreaming, quality, iteration, validation }: Props) {
   const steps = events.filter(e => e.type === 'step')
@@ -41,114 +33,119 @@ export default function StreamRenderer({ events, report, isStreaming, quality, i
   const isResearching = isStreaming && !hasReport
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
 
-      {/* Pipeline status — while graph is running */}
+      {/* Pipeline steps */}
       {(isResearching || (!isStreaming && steps.length > 0 && !hasReport)) && (
-        <div className="p-4 bg-card" style={{ border: '1px solid rgba(0,255,225,0.25)' }}>
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-mono text-dim-cyan tracking-widest">// PIPELINE_STATUS</span>
+        <div style={{ padding: '20px 24px', background: 'rgba(212,168,71,0.03)', border: '1px solid rgba(212,168,71,0.1)' }}>
+          <div className="flex items-center justify-between mb-4">
+            <span style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+              Research Pipeline
+            </span>
             {iteration > 0 && (
-              <span className="text-xs font-mono text-dim-cyan">ITER_{iteration}</span>
+              <span style={{ fontSize: '10px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.1em' }}>
+                Iteration {iteration}
+              </span>
             )}
           </div>
 
-          {steps.map((e, i) => {
-            if (e.type !== 'step') return null
-            const isLast = i === steps.length - 1
-            const label = NODE_LABELS[e.node] ?? e.node.toUpperCase()
-            const isDone = !isLast || !isStreaming
-            return (
-              <div key={i} className="flex items-center gap-2 mb-1.5 font-mono text-xs">
+          <div className="flex flex-wrap gap-1.5">
+            {steps.map((e, i) => {
+              if (e.type !== 'step') return null
+              const isLast = i === steps.length - 1
+              const isDone = !isLast || !isStreaming
+              const label = NODE_LABELS[e.node] ?? e.node
+              const roman = ROMANS[i] ?? String(i + 1)
+              return (
                 <div
-                  className="w-16 h-1.5 shrink-0"
-                  style={{ background: '#0a1a18', border: '1px solid #1a3d38' }}
+                  key={i}
+                  className={`step-pill ${isDone ? 'done' : isLast ? 'active' : 'done'}`}
                 >
-                  <div
-                    className="h-full"
-                    style={{
-                      width: isDone ? '100%' : isLast ? '65%' : '100%',
-                      background: isDone
-                        ? '#00ffe1'
-                        : 'linear-gradient(90deg, #00ffe1, transparent)',
-                      boxShadow: isDone ? '0 0 4px #00ffe1' : 'none',
-                      transition: 'width 0.4s',
-                    }}
-                  />
+                  <span className="step-pill-num">{roman}</span>
+                  {label}
+                  {isLast && isStreaming && <span className="cursor-blink" />}
                 </div>
-                <span
-                  className={isDone ? 'text-accent' : 'text-muted'}
-                  style={isDone ? { textShadow: '0 0 6px rgba(0,255,225,0.4)' } : {}}
-                >
-                  {padLabel(label)} {isDone ? '[DONE]' : '[RUNNING]'}
-                </span>
-                {isLast && isStreaming && <span className="cursor-blink" />}
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
 
           {quality > 0 && (
-            <div className="mt-3 pt-2 border-t border-border flex items-center gap-2 font-mono text-xs">
-              <span className="text-dim-cyan">QUALITY</span>
-              <span className="text-accent">{asciiBar(quality).filled}</span>
-              <span className="text-border">{asciiBar(quality).empty}</span>
-              <span className="text-accent">{quality}%</span>
+            <div className="flex items-center gap-3 mt-4 pt-3" style={{ borderTop: '1px solid rgba(212,168,71,0.1)' }}>
+              <span style={{ fontSize: '10px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.1em' }}>Quality</span>
+              <div style={{ flex: 1, height: '2px', background: 'rgba(212,168,71,0.1)', borderRadius: '1px', overflow: 'hidden' }}>
+                <div style={{ width: `${quality}%`, height: '100%', background: '#d4a847', transition: 'width 0.5s' }} />
+              </div>
+              <span style={{ fontSize: '11px', fontFamily: 'Georgia, serif', color: '#d4a847', minWidth: '32px', textAlign: 'right' }}>
+                {quality}%
+              </span>
             </div>
           )}
         </div>
       )}
 
-      {/* Token-by-token report streaming */}
+      {/* Report */}
       {hasReport && (
         <div className="flex flex-col gap-2">
-          {isWriting && (
-            <div className="flex items-center gap-2 font-mono text-xs">
-              <span className="text-accent tracking-widest">// RPT_GENERATION</span>
-              <span className="cursor-blink" />
-            </div>
-          )}
-          <div className="report-body">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{report}</ReactMarkdown>
+          {/* Kicker */}
+          <div className="flex items-center gap-3">
+            <span style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.25em', textTransform: 'uppercase' }}>
+              ◆ &nbsp; Research Report
+            </span>
             {isWriting && <span className="cursor-blink" />}
+          </div>
+          {/* Gold rule */}
+          <div style={{ color: 'rgba(212,168,71,0.2)', fontSize: '11px', letterSpacing: '0.04em', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+            ══════════════════════════════════════════════════════════════════════
+          </div>
+          <div className="report-body mt-1">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{report}</ReactMarkdown>
           </div>
         </div>
       )}
 
       {/* Validation scores */}
       {validation && !isStreaming && (
-        <div className="p-4 mt-1 bg-card font-mono" style={{ borderTop: '1px solid rgba(0,255,225,0.1)' }}>
-          <span className="text-xs text-dim-cyan tracking-widest block mb-3">// VALIDATION_SCORES</span>
-          {[
-            { label: 'ACCURACY',     val: validation.accuracy },
-            { label: 'COMPLETENESS', val: validation.completeness },
-            { label: 'CLARITY',      val: validation.clarity },
-            { label: 'OVERALL',      val: validation.overall },
-          ].map(({ label, val }) => {
-            if (val == null) return null
-            const { filled, empty } = asciiBar(val)
-            const isOverall = label === 'OVERALL'
-            return (
-              <div key={label} className="flex items-center gap-2 mb-2 text-xs">
-                <span className="text-dim-cyan w-24 shrink-0">{label}</span>
-                <span
-                  className="text-accent"
-                  style={isOverall ? { textShadow: '0 0 6px #00ffe1' } : {}}
-                >
-                  {filled}
-                </span>
-                <span className="text-border">{empty}</span>
-                <span
-                  className="text-accent ml-1"
-                  style={isOverall ? { textShadow: '0 0 6px #00ffe1', fontWeight: 'bold' } : {}}
-                >
-                  {val}%
-                </span>
-              </div>
-            )
-          })}
+        <div style={{ marginTop: '8px', paddingTop: '20px', borderTop: '1px solid rgba(212,168,71,0.12)' }}>
+          <div style={{ color: 'rgba(212,168,71,0.2)', fontSize: '11px', letterSpacing: '0.04em', overflow: 'hidden', whiteSpace: 'nowrap', marginBottom: '16px' }}>
+            ══════════════════════ Validation Scores ══════════════════════
+          </div>
+          <div className="flex gap-8 flex-wrap">
+            {([
+              { label: 'Accuracy',     val: validation.accuracy },
+              { label: 'Completeness', val: validation.completeness },
+              { label: 'Clarity',      val: validation.clarity },
+              { label: 'Overall',      val: validation.overall, highlight: true },
+            ] as const).map(({ label, val, highlight }) => {
+              if (val == null) return null
+              return (
+                <div key={label}>
+                  <div style={{
+                    fontFamily: 'Georgia, serif',
+                    fontSize: highlight ? '28px' : '24px',
+                    color: highlight ? '#e8be60' : '#d4a847',
+                    lineHeight: 1,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    {val}{' '}
+                    <span style={{ fontSize: '13px', color: 'rgba(212,168,71,0.35)' }}>/ 100</span>
+                  </div>
+                  <div style={{
+                    fontFamily: "'Segoe UI', system-ui, sans-serif",
+                    fontSize: '9px',
+                    color: highlight ? 'rgba(212,168,71,0.45)' : 'rgba(245,240,232,0.22)',
+                    letterSpacing: '0.15em',
+                    textTransform: 'uppercase',
+                    marginTop: '5px',
+                  }}>
+                    {label}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
           {validation.summary && (
-            <p className="text-xs text-dim-cyan mt-2 pt-2 border-t border-border italic">
-              &gt; {validation.summary}
+            <p style={{ marginTop: '14px', fontSize: '12px', color: 'rgba(245,240,232,0.3)', fontStyle: 'italic' }}>
+              {validation.summary}
             </p>
           )}
         </div>

@@ -20,3 +20,5 @@ rank-bm25>=0.2.2          # BM25 smart search over history
 fpdf2>=2.7.9              # PDF export
 markdown>=3.6             # Markdown → HTML for public share pages
 tavily-python>=0.3.0      # Real web search (optional — stub used if key absent)
+pymupdf>=1.23.0           # PDF parsing for file upload
+python-docx>=1.1.0        # DOCX parsing for file upload

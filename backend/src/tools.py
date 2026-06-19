@@ -112,6 +112,122 @@ def github_search(query: str, num_results: int = TOP_K) -> List[Dict[str, Any]]:
         return []
 
 
+# ─── Wikipedia Search ──────────────────────────────────────────────────────────
+
+def wikipedia_search(query: str, num_results: int = TOP_K) -> List[Dict[str, Any]]:
+    try:
+        import re
+        resp = requests.get(
+            "https://en.wikipedia.org/w/api.php",
+            params={
+                "action": "query",
+                "list": "search",
+                "srsearch": query,
+                "srlimit": num_results,
+                "format": "json",
+                "srnamespace": 0,
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        results = []
+        for item in resp.json().get("query", {}).get("search", []):
+            title = item.get("title", "")
+            snippet = re.sub(r"<[^>]+>", "", item.get("snippet", ""))
+            results.append({
+                "text": f"Title: {title}\n\n{snippet}",
+                "source": f"Wikipedia: {title}",
+                "url": f"https://en.wikipedia.org/wiki/{title.replace(' ', '_')}",
+                "relevance": 1.0,
+            })
+        return results
+    except Exception as e:
+        logger.error(f"Wikipedia search failed: {e}")
+        return []
+
+
+# ─── Semantic Scholar Search ───────────────────────────────────────────────────
+
+def semantic_scholar_search(query: str, num_results: int = TOP_K) -> List[Dict[str, Any]]:
+    try:
+        resp = requests.get(
+            "https://api.semanticscholar.org/graph/v1/paper/search",
+            params={
+                "query": query,
+                "limit": num_results,
+                "fields": "title,authors,year,abstract,externalIds",
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        results = []
+        for paper in resp.json().get("data", []):
+            authors = ", ".join(a.get("name", "") for a in paper.get("authors", [])[:3])
+            doi = paper.get("externalIds", {}).get("DOI", "")
+            url = (
+                f"https://doi.org/{doi}" if doi
+                else f"https://www.semanticscholar.org/paper/{paper.get('paperId', '')}"
+            )
+            results.append({
+                "text": (
+                    f"Title: {paper.get('title', '')}\n"
+                    f"Authors: {authors}\n"
+                    f"Year: {paper.get('year', 'Unknown')}\n\n"
+                    f"Abstract: {paper.get('abstract') or 'No abstract available'}"
+                ),
+                "source": paper.get("title", "Semantic Scholar Paper"),
+                "url": url,
+                "relevance": 1.0,
+            })
+        return results
+    except Exception as e:
+        logger.error(f"Semantic Scholar search failed: {e}")
+        return []
+
+
+# ─── CrossRef Search ───────────────────────────────────────────────────────────
+
+def crossref_search(query: str, num_results: int = TOP_K) -> List[Dict[str, Any]]:
+    try:
+        import re
+        resp = requests.get(
+            "https://api.crossref.org/works",
+            params={
+                "query": query,
+                "rows": num_results,
+                "select": "title,author,published,abstract,DOI",
+            },
+            headers={"User-Agent": "ResearchAssistant/2.0 (mailto:research@example.com)"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        results = []
+        for item in resp.json().get("message", {}).get("items", []):
+            title = " ".join(item.get("title", ["Unknown Title"]))
+            authors = ", ".join(
+                f"{a.get('given', '')} {a.get('family', '')}".strip()
+                for a in item.get("author", [])[:3]
+            )
+            doi = item.get("DOI", "")
+            year = (item.get("published", {}).get("date-parts") or [[None]])[0][0]
+            abstract = re.sub(r"<[^>]+>", "", item.get("abstract", "No abstract available"))
+            results.append({
+                "text": (
+                    f"Title: {title}\n"
+                    f"Authors: {authors}\n"
+                    f"Year: {year or 'Unknown'}\n\n"
+                    f"Abstract: {abstract}"
+                ),
+                "source": title,
+                "url": f"https://doi.org/{doi}" if doi else "",
+                "relevance": 1.0,
+            })
+        return results
+    except Exception as e:
+        logger.error(f"CrossRef search failed: {e}")
+        return []
+
+
 # ─── Summarize ─────────────────────────────────────────────────────────────────
 
 def summarize(text: str, max_length: int = 500) -> str:
@@ -126,5 +242,8 @@ TOOL_REGISTRY: Dict[str, Any] = {
     "web_search": web_search,
     "arxiv_search": arxiv_search,
     "github_search": github_search,
+    "wikipedia_search": wikipedia_search,
+    "semantic_scholar_search": semantic_scholar_search,
+    "crossref_search": crossref_search,
     "summarize": summarize,
 }

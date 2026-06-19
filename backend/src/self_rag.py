@@ -7,7 +7,7 @@ Self-RAG decision nodes:
 
 import json
 import logging
-from src.llm import get_llm
+from src.llm import get_llm, get_fast_llm
 from src.state import ResearchState
 
 logger = logging.getLogger(__name__)
@@ -69,7 +69,7 @@ def _parse_json(text: str) -> dict:
 
 
 def _llm_json(prompt: str, fallback: dict) -> dict:
-    llm = get_llm(temperature=0.1)
+    llm = get_fast_llm(temperature=0.1)
     for attempt in range(2):
         extra = "" if attempt == 0 else "\n\nCRITICAL: Return ONLY valid JSON, nothing else."
         try:

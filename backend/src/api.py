@@ -1,7 +1,7 @@
 import asyncio, logging
 from typing import Optional
 import jwt as pyjwt
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response, HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -17,6 +17,17 @@ from src.runner import resume_research, run_research
 
 logger = logging.getLogger(__name__)
 app = FastAPI(title="Agentic Research Assistant", version="2.0.0")
+
+_UPLOAD_MAX_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+def _compact_context(text: str, max_chars: int = 3000) -> str:
+    """Truncate a long text block to keep it within LLM context limits."""
+    if len(text) <= max_chars:
+        return text
+    half = max_chars // 2
+    omitted = len(text) - max_chars
+    return text[:half] + f"\n…[{omitted} chars omitted]…\n" + text[-half:]
 app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 _bearer = HTTPBearer()
@@ -65,6 +76,22 @@ async def resume(thread_id: str, user: dict = Depends(get_current_user)):
     async def gen():
         async for e in resume_research(thread_id, user["google_id"]): yield e
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+# ── File Upload ────────────────────────────────────────────────────────────────
+@app.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+):
+    content = await file.read()
+    if len(content) > _UPLOAD_MAX_BYTES:
+        raise HTTPException(413, "File too large — max 10 MB")
+    from src.file_processor import process_file
+    try:
+        chunks = process_file(content, file.filename or "upload")
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(400, str(e))
+    return {"filename": file.filename, "chunks": len(chunks), "docs": chunks}
 
 # ── History ────────────────────────────────────────────────────────────────────
 @app.get("/history")
