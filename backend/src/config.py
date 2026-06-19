@@ -4,14 +4,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-if not ANTHROPIC_API_KEY:
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if not GROQ_API_KEY:
     sys.exit(
-        "ERROR: ANTHROPIC_API_KEY is not set.\n"
-        "Copy .env.example to .env and add your key."
+        "ERROR: GROQ_API_KEY is not set.\n"
+        "Get a free key at https://console.groq.com → API Keys\n"
+        "Then copy .env.example to .env and add it."
     )
 
-MODEL = "claude-sonnet-4-6"
+MODEL = os.getenv("MODEL", "llama-3.3-70b-versatile")
 
 _DATA_DIR = os.getenv("DATA_DIR", ".")
 CHECKPOINT_DB = os.getenv("CHECKPOINT_DB", os.path.join(_DATA_DIR, "checkpoints.db"))
