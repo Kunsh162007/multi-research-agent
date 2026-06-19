@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { streamResearch, streamResume } from '../lib/api'
-import type { SSEEvent, FinalEvent, StateEvent } from '../types'
+import type { SSEEvent, FinalEvent, StateEvent, Source, SourcesEvent } from '../types'
 
 export interface StreamState {
   events: SSEEvent[]
@@ -10,6 +10,7 @@ export interface StreamState {
   iteration: number
   threadId?: string
   error?: string
+  sources: Source[]
 }
 
 export function useSSE() {
@@ -19,21 +20,22 @@ export function useSSE() {
     isStreaming: false,
     quality: 0,
     iteration: 0,
+    sources: [],
   })
   const abortRef = useRef(false)
 
   const reset = useCallback(() => {
     abortRef.current = true
-    setState({ events: [], report: '', isStreaming: false, quality: 0, iteration: 0 })
+    setState({ events: [], report: '', isStreaming: false, quality: 0, iteration: 0, sources: [] })
   }, [])
 
   const start = useCallback(
-    async (query: string, audience: string, threadId?: string, constraints?: object) => {
+    async (query: string, audience: string, threadId?: string, constraints?: object, docContext?: object[]) => {
       abortRef.current = false
-      setState({ events: [], report: '', isStreaming: true, quality: 0, iteration: 0 })
+      setState({ events: [], report: '', isStreaming: true, quality: 0, iteration: 0, sources: [] })
 
       try {
-        for await (const event of streamResearch(query, audience, threadId, constraints)) {
+        for await (const event of streamResearch(query, audience, threadId, constraints as any, docContext)) {
           if (abortRef.current) break
           _handleEvent(event as SSEEvent, setState)
         }
@@ -49,7 +51,7 @@ export function useSSE() {
 
   const resume = useCallback(async (threadId: string) => {
     abortRef.current = false
-    setState({ events: [], report: '', isStreaming: true, quality: 0, iteration: 0 })
+    setState({ events: [], report: '', isStreaming: true, quality: 0, iteration: 0, sources: [] })
 
     try {
       for await (const event of streamResume(threadId)) {
@@ -83,6 +85,13 @@ function _handleEvent(event: SSEEvent, setState: React.Dispatch<React.SetStateAc
         next.threadId = (event as FinalEvent).thread_id
         next.isStreaming = false
         break
+      case 'sources': {
+        const incoming = (event as SourcesEvent).sources
+        const seen = new Set(prev.sources.map(s => s.url))
+        const merged = [...prev.sources, ...incoming.filter(s => s.url && !seen.has(s.url))]
+        next.sources = merged
+        break
+      }
       case 'error':
         next.isStreaming = false
         next.error = event.message

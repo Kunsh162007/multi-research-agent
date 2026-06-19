@@ -44,7 +44,8 @@ class ResearchRequest(BaseModel):
     query: str
     audience: Optional[str] = "general"
     thread_id: Optional[str] = None
-    constraints: Optional[dict] = None   # supports: use_hyde, use_rag_fusion, use_storm, use_adaptive, use_reflexion
+    constraints: Optional[dict] = None
+    doc_context: Optional[list] = []     # pre-loaded docs from file uploads / URL fetches
 
 class AddTopicRequest(BaseModel):
     topic: str
@@ -67,9 +68,21 @@ async def auth_me(user: dict = Depends(get_current_user)): return user
 @app.post("/research")
 async def research(body: ResearchRequest, user: dict = Depends(get_current_user)):
     async def gen():
-        async for e in run_research(body.query, user["google_id"], body.thread_id, body.audience or "general", body.constraints):
+        async for e in run_research(body.query, user["google_id"], body.thread_id, body.audience or "general", body.constraints, body.doc_context or []):
             yield e
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+@app.post("/fetch-url")
+async def fetch_url_endpoint(request: Request, user: dict = Depends(get_current_user)):
+    data = await request.json()
+    url = (data.get("url") or "").strip()
+    if not url:
+        raise HTTPException(400, "url is required")
+    from src.tools import fetch_url
+    docs = fetch_url(url)
+    if not docs:
+        raise HTTPException(422, "Could not extract content from that URL")
+    return {"url": url, "chunks": len(docs), "docs": docs}
 
 @app.post("/resume/{thread_id}")
 async def resume(thread_id: str, user: dict = Depends(get_current_user)):

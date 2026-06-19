@@ -19,3 +19,7 @@ def final_event(report: str, validation: dict, thread_id: str) -> str:
 
 def error_event(message: str) -> str:
     return f"data: {json.dumps({'type': 'error', 'message': message})}\n\n"
+
+
+def sources_event(sources: list) -> str:
+    return f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"

@@ -2,13 +2,15 @@ export interface User {
   google_id: string; email: string; name: string; picture: string
 }
 
-export type SSEEventType = 'step' | 'token' | 'state' | 'final' | 'error'
-export interface StepEvent  { type: 'step';  node: string; detail: string }
-export interface TokenEvent { type: 'token'; text: string }
-export interface StateEvent { type: 'state'; iteration: number; quality: number }
-export interface FinalEvent { type: 'final'; report: string; validation: Validation; thread_id: string }
-export interface ErrorEvent { type: 'error'; message: string }
-export type SSEEvent = StepEvent | TokenEvent | StateEvent | FinalEvent | ErrorEvent
+export type SSEEventType = 'step' | 'token' | 'state' | 'final' | 'error' | 'sources'
+export interface StepEvent    { type: 'step';    node: string; detail: string }
+export interface TokenEvent   { type: 'token';   text: string }
+export interface StateEvent   { type: 'state';   iteration: number; quality: number }
+export interface FinalEvent   { type: 'final';   report: string; validation: Validation; thread_id: string }
+export interface ErrorEvent   { type: 'error';   message: string }
+export interface Source       { url: string; title: string; source_type: string }
+export interface SourcesEvent { type: 'sources'; sources: Source[] }
+export type SSEEvent = StepEvent | TokenEvent | StateEvent | FinalEvent | ErrorEvent | SourcesEvent
 
 export interface Validation {
   accuracy?: number; completeness?: number; clarity?: number
@@ -19,7 +21,7 @@ export interface Validation {
 export interface ChatMessage {
   id: string; role: 'user' | 'assistant'; content: string
   events: SSEEvent[]; thread_id?: string; timestamp: Date
-  isStreaming: boolean; validation?: Validation; report?: string
+  isStreaming: boolean; validation?: Validation; report?: string; sources?: Source[]
 }
 
 export interface Conversation {

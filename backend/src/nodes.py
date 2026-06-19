@@ -1,4 +1,5 @@
 import json, logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from src.llm import get_llm, get_fast_llm
 from src.state import ResearchState
 from src.tools import TOOL_REGISTRY
@@ -143,27 +144,33 @@ def retrieve(state: ResearchState) -> dict:
         reflection_hint=reflection_hint,
     ), fallback={"tool_calls": [{"tool": "web_search", "query": clarified}]})
 
-    all_docs = []
-    for call in result.get("tool_calls", []):
-        tool_fn = TOOL_REGISTRY.get(call.get("tool", "web_search"), TOOL_REGISTRY["web_search"])
-        try:
-            docs = tool_fn(call.get("query", clarified))
-            all_docs.extend(docs)
-        except Exception as e:
-            logger.error(f"Tool {call.get('tool')} failed: {e}")
+    tool_calls = result.get("tool_calls", [])
 
-    # Multi-query expansion: add semantically varied query variations
+    # Add multi-query expansion calls
     try:
         from src.advanced_rag import multi_query_expand
         for q in multi_query_expand(clarified, state.get("research_angles", []))[:2]:
-            try:
-                all_docs.extend(TOOL_REGISTRY["web_search"](q))
-            except Exception as e:
-                logger.error(f"Multi-query expansion failed for '{q}': {e}")
+            tool_calls.append({"tool": "web_search", "query": q})
     except Exception as e:
         logger.warning(f"Multi-query expansion skipped: {e}")
 
-    return {"retrieved_docs": _dedup_docs(all_docs)}
+    # Run all tool calls in parallel
+    all_docs: list = []
+    def _run_call(call: dict) -> list:
+        tool_fn = TOOL_REGISTRY.get(call.get("tool", "web_search"), TOOL_REGISTRY["web_search"])
+        return tool_fn(call.get("query", clarified))
+
+    with ThreadPoolExecutor(max_workers=min(6, len(tool_calls) or 1)) as pool:
+        futures = {pool.submit(_run_call, c): c for c in tool_calls}
+        for fut in as_completed(futures):
+            try:
+                all_docs.extend(fut.result())
+            except Exception as e:
+                logger.error(f"Tool call failed: {e}")
+
+    # Preserve preloaded docs (uploaded files / URL context) and merge
+    preloaded = [d for d in state.get("retrieved_docs", []) if d.get("preloaded")]
+    return {"retrieved_docs": _dedup_docs(preloaded + all_docs)}
 
 
 def generate(state: ResearchState) -> dict:

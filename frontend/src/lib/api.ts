@@ -71,12 +71,36 @@ export const getKnowledge = (topic?: string, limit = 50): Promise<{ items: Knowl
 export const getDigest = () => api<Digest>('GET', '/monitor/digest')
 export const markVisited = () => api('POST', '/monitor/visit')
 
+// ── File upload & URL fetch ───────────────────────────────────────────────────
+export async function uploadFile(file: File): Promise<{ filename: string; chunks: number; docs: object[] }> {
+  const token = getToken()
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch('/upload', {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(err.detail ?? res.statusText)
+  }
+  return res.json()
+}
+
+export async function fetchUrl(url: string): Promise<{ url: string; chunks: number; docs: object[] }> {
+  return api('POST', '/fetch-url', { url })
+}
+
 // ── SSE streaming ──────────────────────────────────────────────────────────────
-export async function* streamResearch(query: string, audience: string, threadId?: string, constraints?: ResearchConstraints): AsyncGenerator<object> {
+export async function* streamResearch(
+  query: string, audience: string, threadId?: string,
+  constraints?: ResearchConstraints, docContext?: object[]
+): AsyncGenerator<object> {
   const token = getToken()
   const res = await fetch('/research', {
     method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: JSON.stringify({ query, audience, thread_id: threadId, constraints }),
+    body: JSON.stringify({ query, audience, thread_id: threadId, constraints, doc_context: docContext ?? [] }),
   })
   if (!res.ok) throw new Error(`Research failed: ${res.statusText}`)
   yield* _readSSE(res)

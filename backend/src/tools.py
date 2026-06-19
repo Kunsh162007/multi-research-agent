@@ -1,4 +1,5 @@
 import logging
+import re
 import requests
 import arxiv as arxiv_lib
 from typing import List, Dict, Any
@@ -238,6 +239,26 @@ def summarize(text: str, max_length: int = 500) -> str:
 
 # ─── Registry ──────────────────────────────────────────────────────────────────
 
+def fetch_url(url: str, **_) -> List[Dict[str, Any]]:
+    """Fetch a URL and return its text content as retrievable chunks."""
+    try:
+        resp = requests.get(url, timeout=15, headers={"User-Agent": "ResearchAssistant/2.0"})
+        resp.raise_for_status()
+        # Strip HTML tags
+        text = re.sub(r"<script[^>]*>.*?</script>", " ", resp.text, flags=re.S)
+        text = re.sub(r"<style[^>]*>.*?</style>", " ", text, flags=re.S)
+        text = re.sub(r"<[^>]+>", " ", text)
+        text = re.sub(r"\s+", " ", text).strip()
+        if len(text) < 50:
+            return []
+        chunk_size = 800
+        chunks = [text[i:i + chunk_size] for i in range(0, min(len(text), 6000), chunk_size)]
+        return [{"text": c, "source": url, "url": url, "relevance": 1.0} for c in chunks if c.strip()]
+    except Exception as e:
+        logger.error(f"fetch_url failed for {url}: {e}")
+        return []
+
+
 TOOL_REGISTRY: Dict[str, Any] = {
     "web_search": web_search,
     "arxiv_search": arxiv_search,
@@ -245,5 +266,6 @@ TOOL_REGISTRY: Dict[str, Any] = {
     "wikipedia_search": wikipedia_search,
     "semantic_scholar_search": semantic_scholar_search,
     "crossref_search": crossref_search,
+    "fetch_url": fetch_url,
     "summarize": summarize,
 }
