@@ -6,16 +6,19 @@ interface Props {
 export default function FollowUpQuestions({ questions, onSelect }: Props) {
   if (!questions.length) return null
   return (
-    <div className="mt-4">
-      <p className="text-xs text-muted uppercase tracking-wider font-medium mb-2">Follow-up questions</p>
-      <div className="flex flex-col gap-1.5">
+    <div className="mt-3">
+      <p className="text-xs font-mono text-dim-cyan tracking-widest mb-2">// FOLLOW_UP_QUERIES</p>
+      <div className="flex flex-col gap-1">
         {questions.map((q, i) => (
           <button
             key={i}
             onClick={() => onSelect(q)}
-            className="text-left text-sm px-3 py-2 bg-panel border border-border rounded-lg hover:border-accent/60 hover:bg-accent/5 text-muted hover:text-white transition-all group"
+            className="text-left text-xs px-3 py-2 font-mono transition-all text-dim-cyan hover:text-accent"
+            style={{ border: '1px solid rgba(0,255,225,0.1)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(0,255,225,0.3)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(0,255,225,0.1)' }}
           >
-            <span className="text-accent mr-1.5 font-mono text-xs">{i + 1}.</span>
+            <span className="text-magenta mr-2">{String(i + 1).padStart(2, '0')}.</span>
             {q}
           </button>
         ))}

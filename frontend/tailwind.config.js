@@ -4,17 +4,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        surface: '#0f1117',
-        panel:   '#161b27',
-        card:    '#1e2535',
-        border:  '#2a3248',
-        accent:  '#6366f1',
-        'accent-hover': '#4f52d4',
-        muted:   '#8b95b0',
+        surface:        '#020408',
+        panel:          '#030c0b',
+        card:           '#050d0b',
+        border:         '#0d2e2a',
+        accent:         '#00ffe1',
+        'accent-hover': '#00ccb3',
+        muted:          '#4a6b67',
+        magenta:        '#ff2d78',
+        'dim-cyan':     '#1e4a44',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        sans: ["'Courier New'", 'Courier', 'monospace'],
+        mono: ["'Courier New'", 'Courier', 'monospace'],
       },
     },
   },

@@ -146,27 +146,51 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
 
   const isEmpty = messages.length === 0
 
+  function fmtTime(d: Date) {
+    return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  }
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-surface">
       {shareThreadId && (
         <ShareModal threadId={shareThreadId} onClose={() => setShareThreadId(null)} />
       )}
 
+      {/* Header bar */}
+      <div
+        className="px-6 py-3 flex items-center justify-between shrink-0"
+        style={{ borderBottom: '1px solid rgba(0,255,225,0.15)' }}
+      >
+        <div>
+          <div className="flex items-center gap-2 text-xs font-mono text-accent">
+            <span className="status-dot" />
+            RSRCH.ENGINE.SESSION
+          </div>
+          <div className="text-xs font-mono text-dim-cyan mt-0.5">
+            SELF-RAG ACTIVE · GROQ BACKEND
+          </div>
+        </div>
+      </div>
+
       {/* Empty state */}
       {isEmpty && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8">
-          <div className="w-16 h-16 rounded-2xl bg-accent/20 border border-accent/40 flex items-center justify-center">
-            <svg className="w-9 h-9 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-            </svg>
-          </div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-8 p-8">
           <div className="text-center">
-            <h2 className="text-xl font-semibold text-white mb-1">What would you like to research?</h2>
-            <p className="text-muted text-sm max-w-sm">
-              I'll search arXiv, the web, and GitHub, then synthesize a cited report using Self-RAG.
-            </p>
+            <div
+              className="text-4xl font-bold font-mono text-accent tracking-widest mb-1"
+              style={{ textShadow: '0 0 20px #00ffe1, 0 0 40px rgba(0,255,225,0.5)' }}
+            >
+              RSRCH.AI
+            </div>
+            <div className="text-xs font-mono text-magenta tracking-widest mb-4">
+              // INTELLIGENCE TERMINAL — READY
+            </div>
+            <div className="text-xs font-mono text-muted">
+              <span className="text-magenta">$&gt;</span> initialize query to begin research...
+              <span className="cursor-blink" />
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2 justify-center max-w-lg">
+          <div className="flex flex-wrap gap-2 justify-center max-w-xl">
             {[
               'Latest advances in RLHF for LLMs',
               'Mamba vs Transformers architecture comparison',
@@ -176,9 +200,10 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
               <button
                 key={q}
                 onClick={() => setInput(q)}
-                className="text-sm px-3 py-1.5 bg-panel border border-border rounded-lg text-muted hover:text-white hover:border-accent/50 transition-colors"
+                className="text-xs font-mono px-3 py-1.5 text-dim-cyan hover:text-accent transition-colors"
+                style={{ border: '1px solid #0d2e2a' }}
               >
-                {q}
+                &gt; {q}
               </button>
             ))}
           </div>
@@ -187,46 +212,79 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
 
       {/* Messages */}
       {!isEmpty && (
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+        <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
           {messages.map(msg => (
-            <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div key={msg.id} className="flex flex-col gap-1">
               {msg.role === 'user' ? (
-                <div className="max-w-2xl bg-accent/20 border border-accent/30 rounded-2xl rounded-tr-sm px-4 py-3">
-                  <p className="text-white text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                </div>
+                <>
+                  <div className="text-xs font-mono text-magenta tracking-wider">
+                    [USR] · {fmtTime(msg.timestamp)}
+                  </div>
+                  <div
+                    className="px-4 py-3 text-xs font-mono leading-relaxed"
+                    style={{
+                      border: '1px solid #ff2d78',
+                      boxShadow: '0 0 12px rgba(255,45,120,0.2), inset 0 0 8px rgba(255,45,120,0.03)',
+                      color: '#ff8ab0',
+                      maxWidth: '560px',
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {msg.content}
+                  </div>
+                </>
               ) : (
-                <div className="max-w-3xl w-full">
-                  {msg.isStreaming || msg.events.length > 0 ? (
-                    <StreamRenderer
-                      events={msg.events}
-                      report={msg.report ?? ''}
-                      isStreaming={msg.isStreaming}
-                      quality={state.quality}
-                      iteration={state.iteration}
-                      validation={msg.validation}
-                    />
-                  ) : msg.content ? (
-                    <div className="report-body">
-                      <p className="text-slate-300 leading-relaxed whitespace-pre-wrap text-sm">{msg.content}</p>
-                    </div>
-                  ) : null}
+                <>
+                  <div
+                    className="text-xs font-mono tracking-wider"
+                    style={{ color: '#00ffe1', textShadow: '0 0 6px rgba(0,255,225,0.4)' }}
+                  >
+                    [AI] rsrch.engine · {fmtTime(msg.timestamp)}
+                  </div>
+                  <div
+                    className="p-4 bg-card"
+                    style={{
+                      border: '1px solid #00ffe1',
+                      boxShadow: '0 0 20px rgba(0,255,225,0.1), inset 0 0 20px rgba(0,255,225,0.02)',
+                    }}
+                  >
+                    {msg.isStreaming || msg.events.length > 0 ? (
+                      <StreamRenderer
+                        events={msg.events}
+                        report={msg.report ?? ''}
+                        isStreaming={msg.isStreaming}
+                        quality={state.quality}
+                        iteration={state.iteration}
+                        validation={msg.validation}
+                      />
+                    ) : msg.content ? (
+                      <div className="report-body">
+                        <p style={{ color: '#4a7870', lineHeight: '1.7', fontSize: '0.8rem', whiteSpace: 'pre-wrap' }}>
+                          {msg.content}
+                        </p>
+                      </div>
+                    ) : null}
 
-                  {/* Action bar */}
-                  {msg.thread_id && !msg.isStreaming && (
-                    <div className="flex items-center gap-2 mt-3 flex-wrap">
-                      <ExportButton threadId={msg.thread_id} />
-                      <button
-                        onClick={() => setShareThreadId(msg.thread_id!)}
-                        className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 text-muted hover:text-white border border-border hover:border-accent/50 rounded-lg transition-colors"
+                    {/* Action bar */}
+                    {msg.thread_id && !msg.isStreaming && (
+                      <div
+                        className="flex items-center gap-2 mt-3 pt-3 flex-wrap font-mono"
+                        style={{ borderTop: '1px solid rgba(0,255,225,0.1)' }}
                       >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
-                        </svg>
-                        Share
-                      </button>
-                      <span className="text-xs text-muted font-mono ml-auto">thread: {msg.thread_id}</span>
-                    </div>
-                  )}
+                        <ExportButton threadId={msg.thread_id} />
+                        <button
+                          onClick={() => setShareThreadId(msg.thread_id!)}
+                          className="text-xs text-dim-cyan hover:text-accent transition-colors px-2 py-1"
+                          style={{ border: '1px solid #0d2e2a' }}
+                        >
+                          [SHARE]
+                        </button>
+                        <span className="text-xs text-dim-cyan font-mono ml-auto">
+                          thread_{msg.thread_id.slice(0, 8)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Follow-up questions */}
                   {!msg.isStreaming && (msg.validation?.follow_up_questions?.length ?? 0) > 0 && (
@@ -235,14 +293,17 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
                       onSelect={handleSubmit}
                     />
                   )}
-                </div>
+                </>
               )}
             </div>
           ))}
 
           {state.error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm">
-              {state.error}
+            <div
+              className="px-4 py-3 text-xs font-mono"
+              style={{ border: '1px solid #ff2d78', color: '#ff8ab0' }}
+            >
+              [ERR] {state.error}
             </div>
           )}
 
@@ -251,56 +312,70 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
       )}
 
       {/* Input area */}
-      <div className="p-4 border-t border-border bg-panel/50">
+      <div
+        className="px-6 py-4 bg-surface shrink-0"
+        style={{ borderTop: '1px solid rgba(0,255,225,0.15)' }}
+      >
         <div className="max-w-4xl mx-auto">
           {/* Advanced RAG options */}
           {showAdvanced && (
-            <div className="mb-3 p-3 bg-card border border-border rounded-xl">
-              <p className="text-xs font-medium text-muted uppercase tracking-wider mb-3">RAG Options</p>
-              <div className="grid grid-cols-2 gap-2.5 mb-3">
+            <div
+              className="mb-3 p-4 bg-card font-mono"
+              style={{ border: '1px solid rgba(0,255,225,0.2)' }}
+            >
+              <p className="text-xs text-dim-cyan tracking-widest mb-3">// RAG_OPTIONS</p>
+              <div className="grid grid-cols-2 gap-2 mb-3">
                 {RAG_TOGGLES.map(([key, label, desc]) => (
-                  <label key={key} className="flex items-start gap-2 cursor-pointer group select-none">
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={!!constraints[key]}
-                      onClick={() => toggleConstraint(key)}
-                      className={`w-8 h-4 rounded-full transition-colors relative shrink-0 mt-0.5 ${
-                        constraints[key] ? 'bg-accent' : 'bg-border'
-                      }`}
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => toggleConstraint(key)}
+                    className="flex items-start gap-2 text-left cursor-pointer group"
+                  >
+                    <span
+                      className="text-xs shrink-0 mt-0.5 font-mono"
+                      style={{
+                        color: constraints[key] ? '#00ffe1' : '#1e4a44',
+                        textShadow: constraints[key] ? '0 0 6px #00ffe1' : 'none',
+                      }}
                     >
-                      <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${
-                        constraints[key] ? 'translate-x-4' : 'translate-x-0.5'
-                      }`} />
-                    </button>
+                      {constraints[key] ? '[ON]' : '[--]'}
+                    </span>
                     <div>
-                      <p className="text-xs font-medium text-white leading-tight">{label}</p>
-                      <p className="text-xs text-muted leading-tight">{desc}</p>
+                      <p className="text-xs font-mono" style={{ color: constraints[key] ? '#00ffe1' : '#4a6b67' }}>
+                        {label.toUpperCase()}
+                      </p>
+                      <p className="text-xs text-dim-cyan leading-tight">{desc}</p>
                     </div>
-                  </label>
+                  </button>
                 ))}
               </div>
-              <div className="flex items-center gap-4 pt-2.5 border-t border-border">
-                <label className="flex items-center gap-1.5">
-                  <span className="text-xs text-muted">Max iterations:</span>
+              <div
+                className="flex items-center gap-4 pt-2"
+                style={{ borderTop: '1px solid rgba(0,255,225,0.1)' }}
+              >
+                <label className="flex items-center gap-2 text-xs font-mono text-dim-cyan">
+                  MAX_ITER:
                   <input
                     type="number"
                     min={1}
                     max={10}
                     value={constraints.max_iterations ?? 3}
                     onChange={e => setConstraints(prev => ({ ...prev, max_iterations: Math.max(1, Math.min(10, Number(e.target.value))) }))}
-                    className="w-12 text-xs bg-panel border border-border rounded px-1.5 py-0.5 text-white focus:outline-none focus:border-accent/60 text-center"
+                    className="w-10 text-xs bg-transparent text-accent text-center focus:outline-none"
+                    style={{ border: '1px solid #0d2e2a' }}
                   />
                 </label>
-                <label className="flex items-center gap-1.5">
-                  <span className="text-xs text-muted">Quality target:</span>
+                <label className="flex items-center gap-2 text-xs font-mono text-dim-cyan">
+                  QUALITY_TARGET:
                   <input
                     type="number"
                     min={0}
                     max={100}
                     value={constraints.quality_target ?? 75}
                     onChange={e => setConstraints(prev => ({ ...prev, quality_target: Math.max(0, Math.min(100, Number(e.target.value))) }))}
-                    className="w-14 text-xs bg-panel border border-border rounded px-1.5 py-0.5 text-white focus:outline-none focus:border-accent/60 text-center"
+                    className="w-12 text-xs bg-transparent text-accent text-center focus:outline-none"
+                    style={{ border: '1px solid #0d2e2a' }}
                   />
                 </label>
               </div>
@@ -311,37 +386,46 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
           <div className="flex items-center justify-between mb-2">
             <button
               onClick={() => setShowAdvanced(v => !v)}
-              className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full transition-colors ${
-                showAdvanced ? 'bg-accent/20 text-accent' : 'text-muted hover:text-white'
+              className={`text-xs font-mono px-2 py-1 transition-colors ${
+                showAdvanced ? 'text-accent' : 'text-dim-cyan hover:text-accent'
               }`}
+              style={{ border: '1px solid rgba(0,255,225,0.15)' }}
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-              </svg>
-              Advanced
+              {showAdvanced ? '[ PARAMS ▴ ]' : '[ PARAMS ▾ ]'}
             </button>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted">Audience:</span>
+            <div className="flex items-center gap-1 font-mono">
+              <span className="text-xs text-dim-cyan mr-1">// MODE:</span>
               {AUDIENCES.map(a => (
                 <button
                   key={a}
                   onClick={() => setAudience(a)}
-                  className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
-                    audience === a ? 'bg-accent text-white' : 'text-muted hover:text-white'
-                  }`}
+                  className="text-xs px-2 py-0.5 transition-all font-mono"
+                  style={{
+                    border: `1px solid ${audience === a ? '#00ffe1' : '#0d2e2a'}`,
+                    color: audience === a ? '#00ffe1' : '#4a6b67',
+                    boxShadow: audience === a ? '0 0 8px rgba(0,255,225,0.3)' : 'none',
+                  }}
                 >
-                  {a}
+                  {a.toUpperCase()}
                 </button>
               ))}
             </div>
           </div>
 
           {/* Textarea + send */}
-          <div className="flex items-end gap-3 bg-card border border-border rounded-2xl px-4 py-3 focus-within:border-accent/60 transition-colors">
+          <div
+            className="flex items-end gap-3 px-4 py-3"
+            style={{
+              border: '1px solid #00ffe1',
+              boxShadow: '0 0 12px rgba(0,255,225,0.1)',
+            }}
+          >
+            <span className="text-magenta font-mono text-sm shrink-0 self-center">$&gt;</span>
             <textarea
               ref={textareaRef}
-              className="flex-1 bg-transparent text-white placeholder-muted text-sm resize-none focus:outline-none leading-relaxed min-h-[24px] max-h-40"
-              placeholder="Ask anything to research… (Enter to send, Shift+Enter for newline)"
+              className="flex-1 bg-transparent text-accent placeholder-dim-cyan text-xs resize-none focus:outline-none leading-relaxed min-h-[20px] max-h-36 font-mono"
+              style={{ caretColor: '#00ffe1' }}
+              placeholder="enter query..."
               rows={1}
               value={input}
               onChange={handleInputChange}
@@ -351,19 +435,26 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
             <button
               onClick={() => handleSubmit()}
               disabled={!input.trim() || state.isStreaming}
-              className="shrink-0 w-9 h-9 rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+              className="shrink-0 font-mono text-xs px-4 py-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                border: '1px solid #ff2d78',
+                color: '#ff2d78',
+                boxShadow: '0 0 8px rgba(255,45,120,0.3)',
+              }}
             >
               {state.isStreaming ? (
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span className="flex gap-0.5">
+                  <span className="w-1 h-1 bg-magenta typing-dot" />
+                  <span className="w-1 h-1 bg-magenta typing-dot" />
+                  <span className="w-1 h-1 bg-magenta typing-dot" />
+                </span>
               ) : (
-                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                </svg>
+                'EXEC →'
               )}
             </button>
           </div>
-          <p className="text-xs text-muted text-center mt-2">
-            Powered by Claude claude-sonnet-4-6 · Self-RAG · LangGraph
+          <p className="text-xs font-mono text-dim-cyan text-center mt-2">
+            // SELF-RAG · LANGRAPH · GROQ_BACKEND
           </p>
         </div>
       </div>

@@ -11,17 +11,27 @@ interface Props {
   validation?: Validation
 }
 
-const NODE_ICONS: Record<string, string> = {
-  enhance:          '✦',
-  decide_retrieval: '⊙',
-  retrieve:         '⬇',
-  grade_relevance:  '⊡',
-  generate:         '◎',
-  grade_answer:     '⊕',
-  reflect:          '↺',
-  synthesize:       '◈',
-  validate:         '✓',
-  resume:           '↩',
+const NODE_LABELS: Record<string, string> = {
+  enhance:          'QUERY_ENHANCE',
+  decide_retrieval: 'DECIDE_RETRIEVAL',
+  retrieve:         'SRC_RETRIEVAL',
+  grade_relevance:  'GRADE_RELEVANCE',
+  generate:         'RPT_GENERATION',
+  grade_answer:     'GRADE_ANSWER',
+  reflect:          'REFLEXION',
+  synthesize:       'SYNTHESIZE',
+  validate:         'VALIDATION',
+  resume:           'RESUME',
+}
+
+function asciiBar(val: number, total = 10): { filled: string; empty: string } {
+  const f = Math.round((val / 100) * total)
+  return { filled: '█'.repeat(f), empty: '░'.repeat(total - f) }
+}
+
+function padLabel(s: string, width = 20): string {
+  if (s.length >= width) return s
+  return s + ' ' + '.'.repeat(width - s.length - 1)
 }
 
 export default function StreamRenderer({ events, report, isStreaming, quality, iteration, validation }: Props) {
@@ -31,102 +41,115 @@ export default function StreamRenderer({ events, report, isStreaming, quality, i
   const isResearching = isStreaming && !hasReport
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
 
-      {/* Research progress — shown while graph is running (no report yet) */}
+      {/* Pipeline status — while graph is running */}
       {(isResearching || (!isStreaming && steps.length > 0 && !hasReport)) && (
-        <div className="flex flex-col gap-1.5 p-4 bg-panel border border-border rounded-xl">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-muted uppercase tracking-wider">Research progress</span>
+        <div className="p-4 bg-card" style={{ border: '1px solid rgba(0,255,225,0.25)' }}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-mono text-dim-cyan tracking-widest">// PIPELINE_STATUS</span>
             {iteration > 0 && (
-              <div className="flex items-center gap-2 text-xs text-muted">
-                <span>Iteration {iteration}</span>
-                {quality > 0 && (
-                  <div className="flex items-center gap-1">
-                    <div className="w-16 h-1.5 bg-border rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-accent rounded-full transition-all duration-500"
-                        style={{ width: `${quality}%` }}
-                      />
-                    </div>
-                    <span>{quality}%</span>
-                  </div>
-                )}
-              </div>
+              <span className="text-xs font-mono text-dim-cyan">ITER_{iteration}</span>
             )}
           </div>
+
           {steps.map((e, i) => {
             if (e.type !== 'step') return null
             const isLast = i === steps.length - 1
+            const label = NODE_LABELS[e.node] ?? e.node.toUpperCase()
+            const isDone = !isLast || !isStreaming
             return (
-              <div key={i} className={`flex items-start gap-2 text-sm ${isLast && isStreaming ? 'text-white' : 'text-muted'}`}>
-                <span className="font-mono text-accent shrink-0 w-4 text-center text-xs mt-0.5">
-                  {NODE_ICONS[e.node] ?? '·'}
+              <div key={i} className="flex items-center gap-2 mb-1.5 font-mono text-xs">
+                <div
+                  className="w-16 h-1.5 shrink-0"
+                  style={{ background: '#0a1a18', border: '1px solid #1a3d38' }}
+                >
+                  <div
+                    className="h-full"
+                    style={{
+                      width: isDone ? '100%' : isLast ? '65%' : '100%',
+                      background: isDone
+                        ? '#00ffe1'
+                        : 'linear-gradient(90deg, #00ffe1, transparent)',
+                      boxShadow: isDone ? '0 0 4px #00ffe1' : 'none',
+                      transition: 'width 0.4s',
+                    }}
+                  />
+                </div>
+                <span
+                  className={isDone ? 'text-accent' : 'text-muted'}
+                  style={isDone ? { textShadow: '0 0 6px rgba(0,255,225,0.4)' } : {}}
+                >
+                  {padLabel(label)} {isDone ? '[DONE]' : '[RUNNING]'}
                 </span>
-                <span>{e.detail}</span>
-                {isLast && isStreaming && (
-                  <span className="flex gap-0.5 mt-1 ml-1">
-                    <span className="w-1 h-1 rounded-full bg-accent typing-dot" />
-                    <span className="w-1 h-1 rounded-full bg-accent typing-dot" />
-                    <span className="w-1 h-1 rounded-full bg-accent typing-dot" />
-                  </span>
-                )}
+                {isLast && isStreaming && <span className="cursor-blink" />}
               </div>
             )
           })}
+
+          {quality > 0 && (
+            <div className="mt-3 pt-2 border-t border-border flex items-center gap-2 font-mono text-xs">
+              <span className="text-dim-cyan">QUALITY</span>
+              <span className="text-accent">{asciiBar(quality).filled}</span>
+              <span className="text-border">{asciiBar(quality).empty}</span>
+              <span className="text-accent">{quality}%</span>
+            </div>
+          )}
         </div>
       )}
 
       {/* Token-by-token report streaming */}
       {hasReport && (
         <div className="flex flex-col gap-2">
-          {/* "Writing report" header — only while tokens are arriving */}
           {isWriting && (
-            <div className="flex items-center gap-2 px-1">
-              <span className="text-xs font-medium text-accent uppercase tracking-wider">Writing report</span>
-              <span className="flex gap-0.5">
-                <span className="w-1 h-1 rounded-full bg-accent typing-dot" />
-                <span className="w-1 h-1 rounded-full bg-accent typing-dot" style={{ animationDelay: '0.2s' }} />
-                <span className="w-1 h-1 rounded-full bg-accent typing-dot" style={{ animationDelay: '0.4s' }} />
-              </span>
+            <div className="flex items-center gap-2 font-mono text-xs">
+              <span className="text-accent tracking-widest">// RPT_GENERATION</span>
+              <span className="cursor-blink" />
             </div>
           )}
-
           <div className="report-body">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{report}</ReactMarkdown>
-            {/* Blinking cursor at the end of the last token */}
-            {isWriting && (
-              <span className="inline-block w-0.5 h-[1.1em] bg-accent animate-pulse ml-0.5 align-middle rounded-sm" />
-            )}
+            {isWriting && <span className="cursor-blink" />}
           </div>
         </div>
       )}
 
-      {/* Validation scores — shown after streaming completes */}
+      {/* Validation scores */}
       {validation && !isStreaming && (
-        <div className="flex flex-wrap gap-3 p-3 bg-panel border border-border rounded-xl mt-1">
-          <span className="w-full text-xs font-medium text-muted uppercase tracking-wider mb-1">Report quality</span>
+        <div className="p-4 mt-1 bg-card font-mono" style={{ borderTop: '1px solid rgba(0,255,225,0.1)' }}>
+          <span className="text-xs text-dim-cyan tracking-widest block mb-3">// VALIDATION_SCORES</span>
           {[
-            { label: 'Accuracy',     val: validation.accuracy },
-            { label: 'Completeness', val: validation.completeness },
-            { label: 'Clarity',      val: validation.clarity },
-            { label: 'Overall',      val: validation.overall },
-          ].map(({ label, val }) => val != null && (
-            <div key={label} className="flex items-center gap-2">
-              <span className="text-xs text-muted w-20">{label}</span>
-              <div className="w-20 h-1.5 bg-border rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ${
-                    (val ?? 0) >= 75 ? 'bg-green-500' : (val ?? 0) >= 50 ? 'bg-yellow-500' : 'bg-red-500'
-                  }`}
-                  style={{ width: `${val}%` }}
-                />
+            { label: 'ACCURACY',     val: validation.accuracy },
+            { label: 'COMPLETENESS', val: validation.completeness },
+            { label: 'CLARITY',      val: validation.clarity },
+            { label: 'OVERALL',      val: validation.overall },
+          ].map(({ label, val }) => {
+            if (val == null) return null
+            const { filled, empty } = asciiBar(val)
+            const isOverall = label === 'OVERALL'
+            return (
+              <div key={label} className="flex items-center gap-2 mb-2 text-xs">
+                <span className="text-dim-cyan w-24 shrink-0">{label}</span>
+                <span
+                  className="text-accent"
+                  style={isOverall ? { textShadow: '0 0 6px #00ffe1' } : {}}
+                >
+                  {filled}
+                </span>
+                <span className="text-border">{empty}</span>
+                <span
+                  className="text-accent ml-1"
+                  style={isOverall ? { textShadow: '0 0 6px #00ffe1', fontWeight: 'bold' } : {}}
+                >
+                  {val}%
+                </span>
               </div>
-              <span className="text-xs text-white font-mono">{val}/100</span>
-            </div>
-          ))}
+            )
+          })}
           {validation.summary && (
-            <p className="w-full text-xs text-muted mt-1 italic">"{validation.summary}"</p>
+            <p className="text-xs text-dim-cyan mt-2 pt-2 border-t border-border italic">
+              &gt; {validation.summary}
+            </p>
           )}
         </div>
       )}
