@@ -1,0 +1,34 @@
+import os
+import sys
+from dotenv import load_dotenv
+
+load_dotenv()
+
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+if not ANTHROPIC_API_KEY:
+    sys.exit(
+        "ERROR: ANTHROPIC_API_KEY is not set.\n"
+        "Copy .env.example to .env and add your key."
+    )
+
+MODEL = "claude-sonnet-4-6"
+
+_DATA_DIR = os.getenv("DATA_DIR", ".")
+CHECKPOINT_DB = os.getenv("CHECKPOINT_DB", os.path.join(_DATA_DIR, "checkpoints.db"))
+HISTORY_DB    = os.getenv("HISTORY_DB",    os.path.join(_DATA_DIR, "history.db"))
+MONITOR_DB    = os.getenv("MONITOR_DB",    os.path.join(_DATA_DIR, "monitor.db"))
+
+MAX_ITERATIONS = int(os.getenv("MAX_ITERATIONS", "8"))
+QUALITY_TARGET = int(os.getenv("QUALITY_TARGET", "75"))
+TOP_K = int(os.getenv("TOP_K", "5"))
+
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+JWT_SECRET = os.getenv("JWT_SECRET", "change-me-in-production-use-a-long-random-string")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRE_HOURS = 12
+
+CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")]
+
+MONITOR_INTERVAL_HOURS = int(os.getenv("MONITOR_INTERVAL_HOURS", "24"))

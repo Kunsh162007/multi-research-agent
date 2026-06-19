@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+    background-color: #0f1117;
+    color: #e2e8f0;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #2a3248 transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: #2a3248;
+    border-radius: 3px;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-accent hover:bg-accent-hover text-white font-medium px-4 py-2 rounded-lg transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply text-muted hover:text-white hover:bg-card px-3 py-2 rounded-lg transition-colors duration-150;
+  }
+
+  .input-base {
+    @apply bg-card border border-border text-white placeholder-muted rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors;
+  }
+
+  .card {
+    @apply bg-card border border-border rounded-xl;
+  }
+
+  .step-badge {
+    @apply inline-flex items-center gap-1.5 text-xs font-mono bg-panel border border-border text-muted px-2 py-1 rounded-md;
+  }
+}
+
+/* Markdown report styling */
+.report-body h1 { @apply text-2xl font-bold text-white mt-6 mb-3; }
+.report-body h2 { @apply text-xl font-semibold text-white mt-5 mb-2; }
+.report-body h3 { @apply text-lg font-medium text-slate-200 mt-4 mb-2; }
+.report-body p  { @apply text-slate-300 leading-relaxed mb-3; }
+.report-body ul { @apply list-disc list-inside text-slate-300 mb-3 space-y-1; }
+.report-body ol { @apply list-decimal list-inside text-slate-300 mb-3 space-y-1; }
+.report-body li { @apply leading-relaxed; }
+.report-body code { @apply bg-panel font-mono text-sm text-indigo-300 px-1.5 py-0.5 rounded; }
+.report-body pre  { @apply bg-panel border border-border rounded-lg p-4 overflow-x-auto mb-4; }
+.report-body pre code { @apply bg-transparent p-0; }
+.report-body blockquote { @apply border-l-4 border-accent pl-4 italic text-muted mb-4; }
+.report-body a { @apply text-accent hover:underline; }
+.report-body strong { @apply text-white font-semibold; }
+.report-body hr { @apply border-border my-4; }
+
+@keyframes pulse-dot {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+.typing-dot {
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }

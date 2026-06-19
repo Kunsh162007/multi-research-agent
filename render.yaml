@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: research-assistant
+    runtime: python
+    rootDir: .
+    buildCommand: pip install -r backend/requirements.txt && cd frontend && npm ci && npm run build
+    startCommand: cd backend && uvicorn src.api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false          # set manually in Render dashboard
+      - key: GOOGLE_CLIENT_ID
+        sync: false          # set manually in Render dashboard
+      - key: JWT_SECRET
+        generateValue: true  # Render auto-generates a secure random value
+      - key: TAVILY_API_KEY
+        sync: false          # optional — leave blank to use stub search
+      - key: CORS_ORIGINS
+        value: https://research-assistant.onrender.com
+      - key: MONITOR_INTERVAL_HOURS
+        value: "24"
+      - key: MAX_ITERATIONS
+        value: "8"
+      - key: QUALITY_TARGET
+        value: "75"
