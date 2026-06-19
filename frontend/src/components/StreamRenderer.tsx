@@ -111,11 +111,11 @@ export default function StreamRenderer({ events, report, isStreaming, quality, i
           </div>
           <div className="flex gap-8 flex-wrap">
             {([
-              { label: 'Accuracy',     val: validation.accuracy },
-              { label: 'Completeness', val: validation.completeness },
-              { label: 'Clarity',      val: validation.clarity },
-              { label: 'Overall',      val: validation.overall, highlight: true },
-            ] as const).map(({ label, val, highlight }) => {
+              { label: 'Accuracy',     val: validation.accuracy,     highlight: false },
+              { label: 'Completeness', val: validation.completeness, highlight: false },
+              { label: 'Clarity',      val: validation.clarity,      highlight: false },
+              { label: 'Overall',      val: validation.overall,      highlight: true  },
+            ] as { label: string; val: number | undefined; highlight: boolean }[]).map(({ label, val, highlight }) => {
               if (val == null) return null
               return (
                 <div key={label}>
