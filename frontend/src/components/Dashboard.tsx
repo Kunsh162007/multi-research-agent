@@ -5,10 +5,11 @@ import type { Stats } from '../types'
 interface Props { onClose: () => void }
 
 const glass = {
-  background: 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)',
-  backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
-  border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px',
+  background: 'linear-gradient(135deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.05) 100%)',
+  backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+  border: '1px solid rgba(255,255,255,0.18)', borderRadius: '12px',
   padding: '18px 20px', position: 'relative', overflow: 'hidden',
+  boxShadow: '0 4px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1)',
 } as React.CSSProperties
 
 function GlassSection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -18,7 +19,7 @@ function GlassSection({ title, children }: { title: string; children: React.Reac
         position: 'absolute', top: 0, left: 0, right: 0, height: '1px',
         background: 'linear-gradient(90deg, transparent, rgba(79,195,247,0.25), transparent)',
       }} />
-      <p style={{ fontSize: '9px', fontWeight: '700', color: 'rgba(79,195,247,0.45)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '16px' }}>
+      <p style={{ fontSize: '9px', fontWeight: '700', color: 'rgba(56,189,248,0.7)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '16px' }}>
         {title}
       </p>
       {children}
@@ -166,7 +167,7 @@ export default function Dashboard({ onClose }: Props) {
                 {stats.recent.map((r, i) => (
                   <li key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ fontSize: '10px', fontWeight: '700', color: 'rgba(79,195,247,0.3)', flexShrink: 0, minWidth: '16px' }}>{i + 1}.</span>
-                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</span>
+                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.72)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</span>
                     <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', flexShrink: 0 }}>
                       {new Date(r.updated_at).toLocaleDateString()}
                     </span>

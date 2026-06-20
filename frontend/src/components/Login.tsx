@@ -55,10 +55,11 @@ export default function Login({ onLogin }: Props) {
           {MODES.map(m => (
             <div key={m.label} style={{
               padding: '14px 16px',
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)',
-              backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px',
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%)',
+              backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255,255,255,0.18)', borderRadius: '12px',
               position: 'relative', overflow: 'hidden',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.12)',
             }}>
               <div style={{
                 position: 'absolute', top: 0, left: 0, right: 0, height: '1px',
@@ -66,7 +67,7 @@ export default function Login({ onLogin }: Props) {
               }} />
               <div style={{ fontSize: '18px', marginBottom: '8px', color: m.color }}>{m.icon}</div>
               <div style={{ fontSize: '11px', fontWeight: '700', color: 'rgba(255,255,255,0.85)', marginBottom: '4px' }}>{m.label}</div>
-              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>{m.desc}</div>
+              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.58)', lineHeight: 1.5 }}>{m.desc}</div>
             </div>
           ))}
         </div>

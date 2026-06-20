@@ -66,11 +66,11 @@ export default function Sidebar({
     <aside
       className="w-64 shrink-0 flex flex-col h-full relative"
       style={{
-        background: 'linear-gradient(180deg, rgba(8,16,48,0.92) 0%, rgba(4,10,30,0.95) 100%)',
-        backdropFilter: 'blur(24px)',
-        WebkitBackdropFilter: 'blur(24px)',
-        borderRight: '1px solid rgba(255,255,255,0.08)',
-        boxShadow: 'inset -1px 0 0 rgba(79,195,247,0.06)',
+        background: 'linear-gradient(180deg, rgba(6,13,40,0.97) 0%, rgba(3,8,24,0.98) 100%)',
+        backdropFilter: 'blur(28px)',
+        WebkitBackdropFilter: 'blur(28px)',
+        borderRight: '1px solid rgba(255,255,255,0.12)',
+        boxShadow: 'inset -1px 0 0 rgba(56,189,248,0.1), 4px 0 24px rgba(0,0,0,0.4)',
       }}
     >
       {/* Vertical accent line */}
@@ -159,18 +159,18 @@ export default function Sidebar({
               background: 'transparent', border: 'none', cursor: 'pointer',
               borderRadius: '8px', transition: 'all 0.18s',
               display: 'flex', alignItems: 'center', gap: '8px',
-              fontSize: '12px', color: 'rgba(255,255,255,0.45)',
+              fontSize: '12px', color: 'rgba(255,255,255,0.55)',
               letterSpacing: '0.02em',
             }}
             onMouseEnter={e => {
               const el = e.currentTarget as HTMLElement
-              el.style.background = 'rgba(255,255,255,0.05)'
-              el.style.color = 'rgba(255,255,255,0.75)'
+              el.style.background = 'rgba(255,255,255,0.09)'
+              el.style.color = 'rgba(255,255,255,0.88)'
             }}
             onMouseLeave={e => {
               const el = e.currentTarget as HTMLElement
               el.style.background = 'transparent'
-              el.style.color = 'rgba(255,255,255,0.45)'
+              el.style.color = 'rgba(255,255,255,0.55)'
             }}
           >
             <span style={{ color, fontSize: '12px', width: '16px', flexShrink: 0 }}>{icon}</span>
@@ -194,19 +194,46 @@ export default function Sidebar({
 
       {/* Search bar */}
       <div style={{ padding: '0 12px 8px' }}>
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search sessions…"
-          style={{
-            width: '100%', background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px',
-            color: 'rgba(255,255,255,0.7)', fontSize: '11px', padding: '6px 10px',
-            outline: 'none', fontFamily: 'system-ui, sans-serif',
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '7px',
+          background: 'rgba(255,255,255,0.12)',
+          border: '1px solid rgba(255,255,255,0.22)',
+          borderRadius: '9px', padding: '6px 11px',
+          backdropFilter: 'blur(8px)',
+          transition: 'border-color 0.2s, box-shadow 0.2s',
+        }}
+          onFocus={() => {}}
+          onFocusCapture={e => {
+            const el = e.currentTarget as HTMLElement
+            el.style.borderColor = 'rgba(56,189,248,0.55)'
+            el.style.boxShadow = '0 0 0 3px rgba(56,189,248,0.12)'
           }}
-          onFocus={e => { (e.target as HTMLElement).style.borderColor = 'rgba(79,195,247,0.3)' }}
-          onBlur={e => { (e.target as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)' }}
-        />
+          onBlurCapture={e => {
+            const el = e.currentTarget as HTMLElement
+            el.style.borderColor = 'rgba(255,255,255,0.22)'
+            el.style.boxShadow = 'none'
+          }}
+        >
+          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', flexShrink: 0, lineHeight: 1 }}>
+            ⌕
+          </span>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search sessions…"
+            style={{
+              flex: 1, background: 'transparent', border: 'none', outline: 'none',
+              color: 'rgba(255,255,255,0.88)', fontSize: '11px',
+              fontFamily: 'system-ui, sans-serif',
+            }}
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', cursor: 'pointer', fontSize: '14px', padding: '0', lineHeight: 1 }}
+            >×</button>
+          )}
+        </div>
       </div>
 
       {/* History */}
@@ -242,7 +269,7 @@ export default function Sidebar({
                         ? 'linear-gradient(135deg, rgba(79,195,247,0.12) 0%, rgba(6,182,212,0.06) 100%)'
                         : 'transparent',
                       border: isActive ? '1px solid rgba(79,195,247,0.2)' : '1px solid transparent',
-                      color: isActive ? '#7dd3fc' : 'rgba(255,255,255,0.4)',
+                      color: isActive ? '#7dd3fc' : 'rgba(255,255,255,0.60)',
                       fontSize: '12px', letterSpacing: '0.01em',
                       cursor: 'pointer', transition: 'all 0.18s',
                       display: 'flex', alignItems: 'center', gap: '6px',
@@ -250,15 +277,15 @@ export default function Sidebar({
                     onMouseEnter={e => {
                       if (!isActive) {
                         const el = e.currentTarget as HTMLElement
-                        el.style.background = 'rgba(255,255,255,0.04)'
-                        el.style.color = 'rgba(255,255,255,0.65)'
+                        el.style.background = 'rgba(255,255,255,0.07)'
+                        el.style.color = 'rgba(255,255,255,0.88)'
                       }
                     }}
                     onMouseLeave={e => {
                       if (!isActive) {
                         const el = e.currentTarget as HTMLElement
                         el.style.background = 'transparent'
-                        el.style.color = 'rgba(255,255,255,0.4)'
+                        el.style.color = 'rgba(255,255,255,0.60)'
                       }
                     }}
                   >
