@@ -193,29 +193,29 @@ export default function Sidebar({
       </div>
 
       {/* Search bar */}
-      <div style={{ padding: '0 12px 8px' }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '7px',
-          background: 'rgba(255,255,255,0.12)',
-          border: '1px solid rgba(255,255,255,0.22)',
-          borderRadius: '9px', padding: '6px 11px',
-          backdropFilter: 'blur(8px)',
+      <div style={{ padding: '0 12px 10px' }}>
+        <label style={{
+          display: 'flex', alignItems: 'center', gap: '8px',
+          background: 'rgba(56,189,248,0.10)',
+          border: '1.5px solid rgba(56,189,248,0.45)',
+          borderRadius: '10px', padding: '7px 12px',
+          cursor: 'text',
+          boxShadow: '0 0 0 1px rgba(56,189,248,0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
           transition: 'border-color 0.2s, box-shadow 0.2s',
         }}
-          onFocus={() => {}}
           onFocusCapture={e => {
             const el = e.currentTarget as HTMLElement
-            el.style.borderColor = 'rgba(56,189,248,0.55)'
-            el.style.boxShadow = '0 0 0 3px rgba(56,189,248,0.12)'
+            el.style.borderColor = 'rgba(56,189,248,0.85)'
+            el.style.boxShadow = '0 0 0 3px rgba(56,189,248,0.18), inset 0 1px 0 rgba(255,255,255,0.06)'
           }}
           onBlurCapture={e => {
             const el = e.currentTarget as HTMLElement
-            el.style.borderColor = 'rgba(255,255,255,0.22)'
-            el.style.boxShadow = 'none'
+            el.style.borderColor = 'rgba(56,189,248,0.45)'
+            el.style.boxShadow = '0 0 0 1px rgba(56,189,248,0.12), inset 0 1px 0 rgba(255,255,255,0.06)'
           }}
         >
-          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', flexShrink: 0, lineHeight: 1 }}>
-            ⌕
+          <span style={{ fontSize: '13px', color: 'rgba(56,189,248,0.75)', flexShrink: 0, lineHeight: 1 }}>
+            🔍
           </span>
           <input
             value={search}
@@ -223,17 +223,21 @@ export default function Sidebar({
             placeholder="Search sessions…"
             style={{
               flex: 1, background: 'transparent', border: 'none', outline: 'none',
-              color: 'rgba(255,255,255,0.88)', fontSize: '11px',
+              color: '#e0f2fe', fontSize: '12px',
               fontFamily: 'system-ui, sans-serif',
             }}
           />
           {search && (
             <button
               onClick={() => setSearch('')}
-              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', cursor: 'pointer', fontSize: '14px', padding: '0', lineHeight: 1 }}
+              style={{
+                background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)',
+                color: 'rgba(255,255,255,0.6)', cursor: 'pointer',
+                fontSize: '12px', padding: '1px 5px', lineHeight: 1, borderRadius: '4px',
+              }}
             >×</button>
           )}
-        </div>
+        </label>
       </div>
 
       {/* History */}

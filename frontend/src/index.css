@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+input::placeholder,
+textarea::placeholder {
+  color: rgba(148, 210, 252, 0.45);
+}
+
 /* ── Design tokens ──────────────────────────────────────────────── */
 :root {
   --accent:      #38bdf8;
