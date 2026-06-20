@@ -64,8 +64,8 @@ export default function App() {
         onOpenDashboard={() => setView('dashboard')}
       />
 
-      <main className="flex-1 flex overflow-hidden">
-        <div className="flex-1 overflow-hidden">
+      <main style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0, height: '100%' }}>
           {view === 'monitor' && (
             <MonitorPanel onClose={handleNewChat} />
           )}
