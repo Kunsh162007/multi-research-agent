@@ -1,9 +1,14 @@
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google'
 import { useState } from 'react'
 
-interface Props {
-  onLogin: (credential: string) => Promise<void>
-}
+interface Props { onLogin: (credential: string) => Promise<void> }
+
+const MODES = [
+  { icon: '⟳', label: 'Validate Ideas', desc: 'Check if your idea is novel & find related work', color: '#06b6d4' },
+  { icon: '◈', label: 'Find Tools',     desc: 'Discover the best frameworks for any use case',  color: '#818cf8' },
+  { icon: '◇', label: 'Learn Concepts', desc: 'Deep-dive any technology from basics to expert', color: '#34d399' },
+  { icon: '◆', label: 'Deep Research',  desc: 'Comprehensive reports with citations & analysis', color: '#4fc3f7' },
+]
 
 export default function Login({ onLogin }: Props) {
   const [error, setError] = useState<string | null>(null)
@@ -11,79 +16,89 @@ export default function Login({ onLogin }: Props) {
 
   async function handleSuccess(response: CredentialResponse) {
     if (!response.credential) return
-    setLoading(true)
-    setError(null)
-    try {
-      await onLogin(response.credential)
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Login failed')
-    } finally {
-      setLoading(false)
-    }
+    setLoading(true); setError(null)
+    try { await onLogin(response.credential) }
+    catch (e: unknown) { setError(e instanceof Error ? e.message : 'Login failed') }
+    finally { setLoading(false) }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: '#0c0c0c' }}>
-      <div className="flex flex-col items-center gap-7 w-full max-w-sm px-6">
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '24px', background: 'transparent',
+    }}>
+      <div style={{ width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
         {/* Logo */}
-        <div className="text-center">
-          <div style={{ color: '#d4a847', fontSize: '26px', letterSpacing: '0.12em', marginBottom: '10px' }}>
-            ◆ RESEARCH AI
-          </div>
+        <div style={{ textAlign: 'center', marginBottom: '8px' }}>
           <div style={{
-            height: '1px', width: '200px', margin: '0 auto 12px',
-            background: 'linear-gradient(90deg, transparent, #d4a847, transparent)',
-            opacity: 0.45,
-          }} />
-          <p style={{ fontSize: '11px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.5)', letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-            Agentic Research Intelligence
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 56, height: 56, borderRadius: '16px', marginBottom: '16px',
+            background: 'linear-gradient(135deg, rgba(79,195,247,0.3), rgba(6,182,212,0.2))',
+            border: '1px solid rgba(79,195,247,0.4)',
+            fontSize: '24px', boxShadow: '0 0 32px rgba(79,195,247,0.25)',
+          }}>◆</div>
+          <h1 style={{
+            fontSize: '22px', fontWeight: '800', letterSpacing: '-0.01em', marginBottom: '6px',
+            background: 'linear-gradient(135deg, #7dd3fc 0%, #06b6d4 50%, #818cf8 100%)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+          }}>IntelLab</h1>
+          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+            AI Research Intelligence
           </p>
         </div>
 
-        {/* Capabilities */}
-        <div
-          className="w-full"
-          style={{ background: '#181612', border: '1px solid rgba(212,168,71,0.12)', padding: '20px 24px' }}
-        >
-          <p style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: '14px' }}>
-            Capabilities
-          </p>
-          {[
-            'Self-RAG with adaptive retrieval',
-            'arXiv · Web · Semantic Scholar · CrossRef',
-            'Token-by-token report streaming',
-            'Knowledge monitor & auto-sync',
-            'Export Markdown / PDF / BibTeX',
-          ].map(f => (
-            <div key={f} className="flex items-start gap-3 mb-2.5">
-              <span style={{ color: 'rgba(212,168,71,0.5)', fontSize: '10px', marginTop: '2px', flexShrink: 0 }}>◆</span>
-              <span style={{ fontSize: '13px', color: 'rgba(245,240,232,0.55)', lineHeight: 1.5 }}>{f}</span>
+        {/* Mode showcase — replaces old Capabilities list */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px',
+        }}>
+          {MODES.map(m => (
+            <div key={m.label} style={{
+              padding: '14px 16px',
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)',
+              backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px',
+              position: 'relative', overflow: 'hidden',
+            }}>
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0, height: '1px',
+                background: `linear-gradient(90deg, transparent, ${m.color}40, transparent)`,
+              }} />
+              <div style={{ fontSize: '18px', marginBottom: '8px', color: m.color }}>{m.icon}</div>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: 'rgba(255,255,255,0.85)', marginBottom: '4px' }}>{m.label}</div>
+              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', lineHeight: 1.5 }}>{m.desc}</div>
             </div>
           ))}
         </div>
 
         {/* Sign-in card */}
-        <div
-          className="w-full flex flex-col items-center gap-4"
-          style={{ background: '#181612', border: '1px solid rgba(212,168,71,0.2)', padding: '28px 24px' }}
-        >
-          <p style={{ fontSize: '9px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.4)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
-            Authenticate
+        <div style={{
+          padding: '28px 24px',
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%)',
+          backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid rgba(79,195,247,0.2)', borderRadius: '16px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, height: '1px',
+            background: 'linear-gradient(90deg, transparent, rgba(79,195,247,0.4), transparent)',
+          }} />
+          <p style={{ fontSize: '9px', fontWeight: '700', color: 'rgba(79,195,247,0.5)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+            Sign In to Continue
           </p>
           {loading ? (
-            <div className="flex flex-col items-center gap-3 py-2">
-              <div className="flex gap-1.5">
-                <span className="w-2 h-2 bg-accent typing-dot" />
-                <span className="w-2 h-2 bg-accent typing-dot" />
-                <span className="w-2 h-2 bg-accent typing-dot" />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '8px 0' }}>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {[0,0.2,0.4].map((d,i) => (
+                  <span key={i} className="typing-dot" style={{ width:8,height:8,borderRadius:'50%',background:'#4fc3f7',display:'inline-block',animationDelay:`${d}s` }} />
+                ))}
               </div>
-              <p style={{ fontSize: '11px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(212,168,71,0.5)', letterSpacing: '0.1em' }}>
-                Authenticating…
-              </p>
+              <p style={{ fontSize: '11px', color: 'rgba(79,195,247,0.5)', letterSpacing: '0.1em' }}>Authenticating…</p>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-3 w-full">
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', width: '100%' }}>
               <GoogleLogin
                 onSuccess={handleSuccess}
                 onError={() => setError('Google login failed')}
@@ -93,19 +108,17 @@ export default function Login({ onLogin }: Props) {
                 shape="rectangular"
                 width="280"
               />
-              <p style={{ fontSize: '11px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(245,240,232,0.2)', textAlign: 'center' }}>
-                Sign in with Google to continue
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.2)', textAlign: 'center' }}>
+                Secure sign-in · your data stays private
               </p>
             </div>
           )}
           {error && (
-            <p style={{ fontSize: '12px', color: 'rgba(200,80,60,0.8)', textAlign: 'center', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
-              {error}
-            </p>
+            <p style={{ fontSize: '12px', color: 'rgba(252,165,165,0.8)', textAlign: 'center' }}>{error}</p>
           )}
         </div>
 
-        <p style={{ fontSize: '10px', fontFamily: "'Segoe UI', system-ui, sans-serif", color: 'rgba(245,240,232,0.15)', textAlign: 'center', letterSpacing: '0.05em' }}>
+        <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.15)', textAlign: 'center', letterSpacing: '0.05em' }}>
           Session persists on refresh · closes on tab exit
         </p>
       </div>
