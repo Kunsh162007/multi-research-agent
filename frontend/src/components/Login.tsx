@@ -4,10 +4,10 @@ import { useState } from 'react'
 interface Props { onLogin: (credential: string) => Promise<void> }
 
 const MODES = [
-  { icon: '⟳', label: 'Validate Ideas',  desc: 'Check if your idea is novel & find related work',     color: '#818cf8' },
-  { icon: '⬡', label: 'Find Tools',      desc: 'Discover the best frameworks for any use case',        color: '#a78bfa' },
-  { icon: '◇', label: 'Learn Concepts',  desc: 'Deep-dive any technology from basics to expert',       color: '#c4b5fd' },
-  { icon: '✦', label: 'Deep Research',   desc: 'Comprehensive reports with citations & analysis',      color: '#a5b4fc' },
+  { icon: '⟳', label: 'Validate Ideas',  desc: 'Check if your idea is novel & find related work',     color: '#fb923c' },
+  { icon: '⬡', label: 'Find Tools',      desc: 'Discover the best frameworks for any use case',        color: '#f59e0b' },
+  { icon: '◇', label: 'Learn Concepts',  desc: 'Deep-dive any technology from basics to expert',       color: '#fb923c' },
+  { icon: '✦', label: 'Deep Research',   desc: 'Comprehensive reports with citations & analysis',      color: '#f59e0b' },
 ]
 
 export default function Login({ onLogin }: Props) {
@@ -31,15 +31,15 @@ export default function Login({ onLogin }: Props) {
           <div style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             width: 56, height: 56, borderRadius: 16, marginBottom: 18,
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            background: 'linear-gradient(135deg, #f97316, #ea580c)',
             fontSize: 26,
-            boxShadow: '0 0 32px rgba(99,102,241,0.45)',
+            boxShadow: '0 0 32px rgba(249,115,22,0.50)',
           }}>🔬</div>
           <h1 style={{
             fontSize: 24, fontWeight: 700, letterSpacing: '-0.01em', marginBottom: 6,
             color: '#e2e4f0',
           }}>IntelLab</h1>
-          <p style={{ fontSize: 11, color: '#6366f1', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+          <p style={{ fontSize: 11, color: '#f97316', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
             AI Research Intelligence Suite
           </p>
         </div>
@@ -49,9 +49,9 @@ export default function Login({ onLogin }: Props) {
           {MODES.map(m => (
             <div key={m.label} style={{
               padding: '14px 16px',
-              background: 'rgba(99,102,241,0.07)',
+              background: 'rgba(249,115,22,0.07)',
               backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(99,102,241,0.22)',
+              border: '1px solid rgba(249,115,22,0.22)',
               borderRadius: 12,
               position: 'relative', overflow: 'hidden',
             }}>
@@ -71,7 +71,7 @@ export default function Login({ onLogin }: Props) {
           padding: '26px 24px',
           background: 'rgba(255,255,255,0.04)',
           backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(99,102,241,0.25)',
+          border: '1px solid rgba(249,115,22,0.25)',
           borderRadius: 16,
           boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
@@ -79,19 +79,19 @@ export default function Login({ onLogin }: Props) {
         }}>
           <div style={{
             position: 'absolute', top: 0, left: 0, right: 0, height: 1,
-            background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.45), transparent)',
+            background: 'linear-gradient(90deg, transparent, rgba(249,115,22,0.45), transparent)',
           }} />
-          <p style={{ fontSize: 9, fontWeight: 700, color: 'rgba(99,102,241,0.65)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+          <p style={{ fontSize: 9, fontWeight: 700, color: 'rgba(249,115,22,0.65)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
             Sign In to Continue
           </p>
           {loading ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '8px 0' }}>
               <div style={{ display: 'flex', gap: 6 }}>
                 {[0, 0.2, 0.4].map((d, i) => (
-                  <span key={i} className="typing-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', display: 'inline-block', animationDelay: `${d}s` }} />
+                  <span key={i} className="typing-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: '#f97316', display: 'inline-block', animationDelay: `${d}s` }} />
                 ))}
               </div>
-              <p style={{ fontSize: 11, color: 'rgba(99,102,241,0.6)', letterSpacing: '0.1em' }}>Authenticating…</p>
+              <p style={{ fontSize: 11, color: 'rgba(249,115,22,0.6)', letterSpacing: '0.1em' }}>Authenticating…</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, width: '100%' }}>

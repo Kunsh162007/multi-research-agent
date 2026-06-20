@@ -66,7 +66,7 @@ export default function Sidebar({
     <aside className="sidebar-root">
       {/* Logo */}
       <div className="sidebar-logo">
-        <div className="sidebar-logo-icon">🔬</div>
+        <div className="sidebar-logo-icon">⚡</div>
         <div>
           <div className="sidebar-logo-name">IntelLab</div>
           <div className="sidebar-logo-sub">Intelligence Suite</div>
