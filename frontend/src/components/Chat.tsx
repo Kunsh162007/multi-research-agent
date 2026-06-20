@@ -269,29 +269,19 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
 
       {/* Header */}
       <div className="chat-header">
-        <div className="chat-header-title">
-          <span className="status-dot" />
-          Intelligence Lab
+        <div className="chat-title">
+          {messages.length > 0
+            ? (messages.find(m => m.role === 'user')?.content?.slice(0, 60) ?? 'Intelligence Lab')
+            : 'Intelligence Lab'}
         </div>
-        <div className="chat-header-sub">
+        <div className="chat-sub" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
           {MODES.map(m => (
             <button
               key={m.id}
               onClick={() => setMode(m.id)}
               className={`mode-chip${mode === m.id ? ' active' : ''}`}
-              style={mode === m.id ? { borderColor: `${m.color}55`, color: m.color, background: `${m.color}15` } : {}}
             >
               {m.icon} {m.short}
-            </button>
-          ))}
-          <span style={{ color: 'rgba(255,255,255,0.15)', margin: '0 4px' }}>|</span>
-          {AUDIENCES.map(a => (
-            <button
-              key={a}
-              onClick={() => setAudience(a)}
-              className={`audience-chip${audience === a ? ' active' : ''}`}
-            >
-              {a}
             </button>
           ))}
         </div>
@@ -350,12 +340,17 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
                 </div>
               ) : (
                 <div className="assistant-message-wrap">
-                  <div className="message-meta assistant-meta">
-                    <span style={{ color: activeModeConfig.color }}>{activeModeConfig.icon}</span>
-                    Intelligence Lab · {fmtTime(msg.timestamp)}
-                    {!msg.isStreaming && msg.thread_id && (
-                      <span className="thread-id">{msg.thread_id.slice(0, 8)}</span>
-                    )}
+                  <div className="ai-header">
+                    <div className="ai-avatar">✦</div>
+                    <div>
+                      <div className="ai-name">IntelLab</div>
+                      <div className="ai-sources">
+                        {msg.isStreaming ? 'Researching…' : `${fmtTime(msg.timestamp)}`}
+                        {!msg.isStreaming && msg.thread_id && (
+                          <span style={{ marginLeft: 8, color: 'var(--text-5)', fontSize: 10 }}>{msg.thread_id.slice(0, 8)}</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   <div className="assistant-card">
@@ -411,6 +406,29 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
       {/* Input area */}
       <div className="input-area">
         <div className="input-container">
+
+          {/* Audience pills — Design A style */}
+          <div className="audience-pills">
+            <span className="audience-label">Audience:</span>
+            {AUDIENCES.map(a => (
+              <button
+                key={a}
+                onClick={() => setAudience(a)}
+                className={`pill${audience === a ? ' active' : ''}`}
+                style={{ textTransform: 'capitalize' }}
+              >
+                {a}
+              </button>
+            ))}
+            <span style={{ marginLeft: 'auto' }}>
+              <button
+                className={`options-btn${showAdvanced ? ' active' : ''}`}
+                onClick={() => setShowAdvanced(v => !v)}
+              >
+                {showAdvanced ? '▴' : '▾'} Engine
+              </button>
+            </span>
+          </div>
 
           {/* Advanced panel */}
           {showAdvanced && (
@@ -476,19 +494,6 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
             </div>
           )}
 
-          {/* Toolbar */}
-          <div className="input-toolbar">
-            <button
-              className={`btn-ghost options-btn${showAdvanced ? ' active' : ''}`}
-              onClick={() => setShowAdvanced(v => !v)}
-            >
-              {showAdvanced ? '▴' : '▾'} Engine
-            </button>
-            <span style={{ fontSize: '10px', color: 'var(--text-4)', marginLeft: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              · {activeModeConfig.label}
-            </span>
-          </div>
-
           {/* Attached context chips */}
           {attachedDocs.length > 0 && (
             <div className="attach-chips">
@@ -523,19 +528,10 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
               onClick={() => handleSubmit()}
               disabled={!input.trim() || state.isStreaming}
               className="send-btn"
-              style={!state.isStreaming && input.trim() ? {
-                borderColor: `${activeModeConfig.color}60`,
-                color: activeModeConfig.color,
-                background: `linear-gradient(135deg, ${activeModeConfig.color}18, ${activeModeConfig.color}08)`,
-              } : {}}
             >
               {state.isStreaming ? (
-                <span className="flex gap-1 items-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent typing-dot" style={{ background: 'var(--accent)' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent typing-dot" style={{ background: 'var(--accent)' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent typing-dot" style={{ background: 'var(--accent)' }} />
-                </span>
-              ) : `${activeModeConfig.icon} Send`}
+                <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', animation: 'spin 0.75s linear infinite' }} />
+              ) : '↑'}
             </button>
           </div>
         </div>

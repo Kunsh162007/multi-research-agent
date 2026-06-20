@@ -63,262 +63,100 @@ export default function Sidebar({
     : conversations
 
   return (
-    <aside
-      className="w-64 shrink-0 flex flex-col h-full relative"
-      style={{
-        background: 'linear-gradient(180deg, rgba(6,13,40,0.97) 0%, rgba(3,8,24,0.98) 100%)',
-        backdropFilter: 'blur(28px)',
-        WebkitBackdropFilter: 'blur(28px)',
-        borderRight: '1px solid rgba(255,255,255,0.12)',
-        boxShadow: 'inset -1px 0 0 rgba(56,189,248,0.1), 4px 0 24px rgba(0,0,0,0.4)',
-      }}
-    >
-      {/* Vertical accent line */}
-      <div
-        aria-hidden
-        style={{
-          position: 'absolute', right: 0, top: '10%', bottom: '10%', width: '1px',
-          background: 'linear-gradient(180deg, transparent 0%, rgba(79,195,247,0.25) 30%, rgba(129,140,248,0.25) 70%, transparent 100%)',
-          zIndex: 1,
-        }}
-      />
-
+    <aside className="sidebar-root">
       {/* Logo */}
-      <div style={{ padding: '24px 20px 18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: '8px',
-            background: 'linear-gradient(135deg, #4fc3f7, #06b6d4)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '12px', fontWeight: '800', color: 'rgba(0,0,0,0.8)',
-            flexShrink: 0,
-            boxShadow: '0 0 16px rgba(79,195,247,0.3)',
-          }}>I</div>
-          <div>
-            <div style={{
-              fontSize: '13px', fontWeight: '700', letterSpacing: '0.06em',
-              background: 'linear-gradient(135deg, #7dd3fc 0%, #06b6d4 100%)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}>
-              IntelLab
-            </div>
-            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
-              Research AI
-            </div>
-          </div>
+      <div className="sidebar-logo">
+        <div className="sidebar-logo-icon">🔬</div>
+        <div>
+          <div className="sidebar-logo-name">IntelLab</div>
+          <div className="sidebar-logo-sub">Intelligence Suite</div>
         </div>
-        <div style={{
-          height: '1px',
-          background: 'linear-gradient(90deg, rgba(79,195,247,0.3), rgba(129,140,248,0.2), transparent)',
-        }} />
       </div>
 
-      {/* New session button */}
-      <div style={{ padding: '0 16px 12px' }}>
-        <button
-          onClick={onNewChat}
-          style={{
-            width: '100%',
-            padding: '9px 14px',
-            background: 'linear-gradient(135deg, rgba(79,195,247,0.15) 0%, rgba(6,182,212,0.08) 100%)',
-            border: '1px solid rgba(79,195,247,0.3)',
-            borderRadius: '10px',
-            color: '#7dd3fc',
-            fontSize: '11px', fontWeight: '600', letterSpacing: '0.08em', textTransform: 'uppercase',
-            cursor: 'pointer', transition: 'all 0.2s',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-            backdropFilter: 'blur(8px)',
-          }}
-          onMouseEnter={e => {
-            const el = e.currentTarget as HTMLElement
-            el.style.background = 'linear-gradient(135deg, rgba(79,195,247,0.25) 0%, rgba(6,182,212,0.15) 100%)'
-            el.style.boxShadow = '0 0 20px rgba(79,195,247,0.2)'
-          }}
-          onMouseLeave={e => {
-            const el = e.currentTarget as HTMLElement
-            el.style.background = 'linear-gradient(135deg, rgba(79,195,247,0.15) 0%, rgba(6,182,212,0.08) 100%)'
-            el.style.boxShadow = 'none'
-          }}
-        >
-          <span style={{ fontSize: '14px' }}>+</span> New Session
-        </button>
-      </div>
+      {/* Primary action */}
+      <button className="sidebar-btn primary" onClick={onNewChat}>
+        ✦ New Research
+      </button>
 
       {/* Nav */}
-      <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-        {[
-          { label: 'Trend Radar', icon: '◈', onClick: onOpenMonitor, color: '#818cf8', badge: monitorBadge },
-          { label: 'Analytics', icon: '⊞', onClick: onOpenDashboard, color: '#34d399', badge: 0 },
-        ].map(({ label, icon, onClick, color, badge }) => (
-          <button
-            key={label}
-            onClick={onClick}
-            style={{
-              width: '100%', textAlign: 'left', padding: '8px 12px',
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              borderRadius: '8px', transition: 'all 0.18s',
-              display: 'flex', alignItems: 'center', gap: '8px',
-              fontSize: '12px', color: 'rgba(255,255,255,0.55)',
-              letterSpacing: '0.02em',
-            }}
-            onMouseEnter={e => {
-              const el = e.currentTarget as HTMLElement
-              el.style.background = 'rgba(255,255,255,0.09)'
-              el.style.color = 'rgba(255,255,255,0.88)'
-            }}
-            onMouseLeave={e => {
-              const el = e.currentTarget as HTMLElement
-              el.style.background = 'transparent'
-              el.style.color = 'rgba(255,255,255,0.55)'
-            }}
-          >
-            <span style={{ color, fontSize: '12px', width: '16px', flexShrink: 0 }}>{icon}</span>
-            <span style={{ flex: 1 }}>{label}</span>
-            {badge > 0 && (
-              <span style={{
-                fontSize: '9px', fontWeight: '700', padding: '1px 6px',
-                background: 'rgba(129,140,248,0.2)', border: '1px solid rgba(129,140,248,0.4)',
-                borderRadius: '10px', color: '#a5b4fc',
-              }}>{badge}</span>
-            )}
-          </button>
-        ))}
-      </div>
+      <button
+        className="sidebar-btn"
+        onClick={onOpenMonitor}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span>⬡</span> Knowledge Monitor
+        </span>
+        {monitorBadge > 0 && <span className="badge-pill">{monitorBadge}</span>}
+      </button>
+      <button className="sidebar-btn" onClick={onOpenDashboard}>
+        <span>⊞</span> Dashboard
+      </button>
 
-      {/* Section divider */}
-      <div className="section-rule" style={{ padding: '0 20px', margin: '14px 0 8px' }}>
-        <span className="section-rule-label">Sessions</span>
-        <span className="section-rule-line" />
-      </div>
-
-      {/* Search bar */}
-      <div style={{ padding: '0 12px 10px' }}>
-        <label style={{
-          display: 'flex', alignItems: 'center', gap: '8px',
-          background: 'rgba(56,189,248,0.10)',
-          border: '1.5px solid rgba(56,189,248,0.45)',
-          borderRadius: '10px', padding: '7px 12px',
-          cursor: 'text',
-          boxShadow: '0 0 0 1px rgba(56,189,248,0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
-          transition: 'border-color 0.2s, box-shadow 0.2s',
-        }}
-          onFocusCapture={e => {
-            const el = e.currentTarget as HTMLElement
-            el.style.borderColor = 'rgba(56,189,248,0.85)'
-            el.style.boxShadow = '0 0 0 3px rgba(56,189,248,0.18), inset 0 1px 0 rgba(255,255,255,0.06)'
-          }}
-          onBlurCapture={e => {
-            const el = e.currentTarget as HTMLElement
-            el.style.borderColor = 'rgba(56,189,248,0.45)'
-            el.style.boxShadow = '0 0 0 1px rgba(56,189,248,0.12), inset 0 1px 0 rgba(255,255,255,0.06)'
-          }}
-        >
-          <span style={{ fontSize: '13px', color: 'rgba(56,189,248,0.75)', flexShrink: 0, lineHeight: 1 }}>
-            🔍
-          </span>
+      {/* Search */}
+      <div className="sidebar-section-label">Recent Sessions</div>
+      <div style={{ padding: '0 0 6px' }}>
+        <label className="sidebar-search">
+          <span className="sidebar-search-icon">⌕</span>
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search sessions…"
-            style={{
-              flex: 1, background: 'transparent', border: 'none', outline: 'none',
-              color: '#e0f2fe', fontSize: '12px',
-              fontFamily: 'system-ui, sans-serif',
-            }}
           />
           {search && (
             <button
               onClick={() => setSearch('')}
-              style={{
-                background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)',
-                color: 'rgba(255,255,255,0.6)', cursor: 'pointer',
-                fontSize: '12px', padding: '1px 5px', lineHeight: 1, borderRadius: '4px',
-              }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-4)', cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1 }}
             >×</button>
           )}
         </label>
       </div>
 
-      {/* History */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 12px' }}>
+      {/* History list */}
+      <div style={{ flex: 1, overflowY: 'auto', marginRight: -4, paddingRight: 4 }}>
         {loading ? (
-          <div style={{ display: 'flex', gap: '6px', padding: '12px 8px', alignItems: 'center' }}>
-            <span className="typing-dot" style={{ width: 4, height: 4, background: 'rgba(79,195,247,0.4)', borderRadius: '50%', display: 'inline-block' }} />
-            <span className="typing-dot" style={{ width: 4, height: 4, background: 'rgba(79,195,247,0.4)', borderRadius: '50%', display: 'inline-block', animationDelay: '0.2s' }} />
-            <span className="typing-dot" style={{ width: 4, height: 4, background: 'rgba(79,195,247,0.4)', borderRadius: '50%', display: 'inline-block', animationDelay: '0.4s' }} />
+          <div style={{ display: 'flex', gap: 6, padding: '10px 14px', alignItems: 'center' }}>
+            {[0, 0.2, 0.4].map((d, i) => (
+              <span key={i} className="typing-dot" style={{ width: 4, height: 4, borderRadius: '50%', background: 'rgba(99,102,241,0.45)', display: 'inline-block', animationDelay: `${d}s` }} />
+            ))}
           </div>
         ) : conversations.length === 0 ? (
-          <p style={{
-            fontSize: '11px', color: 'rgba(255,255,255,0.2)', fontFamily: 'system-ui, sans-serif',
-            lineHeight: 1.6, padding: '8px',
-          }}>
-            No sessions yet.<br />
-            Start a new one above.
+          <p style={{ fontSize: 12, color: 'var(--text-4)', padding: '8px 14px', lineHeight: 1.65 }}>
+            No sessions yet.<br />Start a new one above.
           </p>
         ) : (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
             {filteredConvs.map(c => {
               const isActive = c.thread_id === activeThreadId
               return (
-                <li key={c.thread_id}>
+                <li key={c.thread_id} className="group">
                   <button
                     onClick={() => onSelectConversation(c.thread_id)}
-                    className="group"
-                    style={{
-                      width: '100%', textAlign: 'left',
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      background: isActive
-                        ? 'linear-gradient(135deg, rgba(79,195,247,0.12) 0%, rgba(6,182,212,0.06) 100%)'
-                        : 'transparent',
-                      border: isActive ? '1px solid rgba(79,195,247,0.2)' : '1px solid transparent',
-                      color: isActive ? '#7dd3fc' : 'rgba(255,255,255,0.60)',
-                      fontSize: '12px', letterSpacing: '0.01em',
-                      cursor: 'pointer', transition: 'all 0.18s',
-                      display: 'flex', alignItems: 'center', gap: '6px',
-                    }}
-                    onMouseEnter={e => {
-                      if (!isActive) {
-                        const el = e.currentTarget as HTMLElement
-                        el.style.background = 'rgba(255,255,255,0.07)'
-                        el.style.color = 'rgba(255,255,255,0.88)'
-                      }
-                    }}
-                    onMouseLeave={e => {
-                      if (!isActive) {
-                        const el = e.currentTarget as HTMLElement
-                        el.style.background = 'transparent'
-                        el.style.color = 'rgba(255,255,255,0.60)'
-                      }
-                    }}
+                    className={`history-item${isActive ? ' active' : ''}`}
+                    style={{ justifyContent: 'space-between' }}
                   >
-                    <span style={{
-                      width: 5, height: 5, borderRadius: '50%', flexShrink: 0,
-                      background: isActive ? '#4fc3f7' : 'rgba(255,255,255,0.15)',
-                      boxShadow: isActive ? '0 0 6px rgba(79,195,247,0.5)' : 'none',
-                    }} />
-                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.4 }}>
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'left' }}>
                       {c.title}
                     </span>
-                    <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', flexShrink: 0 }}>
+                    <span style={{ fontSize: 10, color: 'var(--text-5)', flexShrink: 0, marginLeft: 6 }}>
                       {timeAgo(c.updated_at)}
                     </span>
                     <button
                       onClick={e => handleDelete(e, c.thread_id)}
                       style={{
-                        opacity: 0, color: 'rgba(255,255,255,0.3)', fontSize: '14px',
+                        opacity: 0, color: 'var(--text-4)', fontSize: 14,
                         background: 'none', border: 'none', cursor: 'pointer',
                         padding: '0 2px', lineHeight: 1, flexShrink: 0, transition: 'all 0.15s',
+                        marginLeft: 4,
                       }}
                       className="group-hover:opacity-100"
                       onMouseEnter={e => {
-                        (e.currentTarget as HTMLElement).style.color = 'rgba(252,165,165,0.7)'
-                        ;(e.currentTarget as HTMLElement).style.opacity = '1'
+                        (e.currentTarget as HTMLElement).style.opacity = '1'
+                        ;(e.currentTarget as HTMLElement).style.color = 'rgba(248,113,113,0.7)'
                       }}
                       onMouseLeave={e => {
-                        (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.3)'
-                        ;(e.currentTarget as HTMLElement).style.opacity = '0'
+                        (e.currentTarget as HTMLElement).style.opacity = '0'
+                        ;(e.currentTarget as HTMLElement).style.color = 'var(--text-4)'
                       }}
                     >×</button>
                   </button>
@@ -330,49 +168,21 @@ export default function Sidebar({
       </div>
 
       {/* User footer */}
-      <div
-        style={{
-          padding: '14px 16px',
-          borderTop: '1px solid rgba(255,255,255,0.07)',
-          background: 'rgba(0,0,0,0.15)',
-          display: 'flex', alignItems: 'center', gap: '10px',
-        }}
-      >
-        <div
-          style={{
-            width: 32, height: 32, flexShrink: 0, borderRadius: '10px',
-            background: 'linear-gradient(135deg, rgba(79,195,247,0.3), rgba(129,140,248,0.3))',
-            border: '1px solid rgba(79,195,247,0.3)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '12px', fontWeight: '700', color: '#7dd3fc',
-          }}
-        >
-          {initials}
-        </div>
+      <div className="sidebar-footer">
+        <div className="avatar">{initials}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{
-            fontSize: '12px', color: 'rgba(255,255,255,0.75)', letterSpacing: '0.02em',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
+          <div className="user-name-text" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {user.name}
-          </p>
-          <p style={{ fontSize: '9px', color: 'rgba(79,195,247,0.4)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-            Online
-          </p>
+          </div>
+          <div className="user-role-text">Online</div>
         </div>
         <button
           onClick={onLogout}
           title="Sign out"
-          style={{
-            color: 'rgba(255,255,255,0.2)', fontSize: '16px', lineHeight: 1,
-            transition: 'color 0.2s', background: 'none', border: 'none', cursor: 'pointer',
-            padding: '4px',
-          }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(252,165,165,0.7)' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.2)' }}
-        >
-          ×
-        </button>
+          style={{ color: 'var(--text-5)', fontSize: 18, lineHeight: 1, background: 'none', border: 'none', cursor: 'pointer', transition: 'color 0.2s', padding: 4 }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(248,113,113,0.7)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-5)' }}
+        >⊗</button>
       </div>
     </aside>
   )

@@ -39,6 +39,21 @@ export default function App() {
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'transparent' }}>
+      {/* Design A — floating particles */}
+      {[
+        { size: 3, left: '15%', duration: '18s', delay: '0s' },
+        { size: 2, left: '35%', duration: '22s', delay: '4s' },
+        { size: 4, left: '58%', duration: '16s', delay: '8s' },
+        { size: 2, left: '78%', duration: '20s', delay: '2s' },
+        { size: 3, left: '90%', duration: '24s', delay: '6s' },
+      ].map((p, i) => (
+        <div
+          key={i}
+          className="particle"
+          style={{ width: p.size, height: p.size, left: p.left, animationDuration: p.duration, animationDelay: p.delay }}
+        />
+      ))}
+
       <Sidebar
         user={user}
         onLogout={logout}
