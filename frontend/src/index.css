@@ -149,12 +149,16 @@ textarea::placeholder {
 
   .gold-input-row {
     display: flex; align-items: flex-end; gap: 10px;
-    padding: 10px 0;
-    border-bottom: 1px solid rgba(56,189,248,0.18);
-    transition: border-color 0.2s;
+    padding: 10px 14px;
+    background: rgba(56,189,248,0.08);
+    border: 1.5px solid rgba(56,189,248,0.38);
+    border-radius: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 0 0 1px rgba(56,189,248,0.10), inset 0 1px 0 rgba(255,255,255,0.05);
   }
   .gold-input-row:focus-within {
-    border-color: rgba(56,189,248,0.5);
+    border-color: rgba(56,189,248,0.75);
+    box-shadow: 0 0 0 3px rgba(56,189,248,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
   }
 }
 
@@ -359,10 +363,10 @@ textarea::placeholder {
 
 /* ── Input area ──────────────────────────────────────────────────── */
 .input-area {
-  flex-shrink: 0; padding: 12px 24px 20px;
-  background: rgba(3,9,28,0.65);
-  backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255,255,255,0.12);
+  flex-shrink: 0; padding: 14px 24px 22px;
+  background: rgba(5,14,45,0.80);
+  backdrop-filter: blur(24px);
+  border-top: 1px solid rgba(56,189,248,0.18);
 }
 .input-container { max-width: 860px; margin: 0 auto; }
 
