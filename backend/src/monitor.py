@@ -242,6 +242,54 @@ class KnowledgeMonitor:
         ).fetchone()[0]
         return count
 
+    # ─── Job post → topics ────────────────────────────────────────────────────
+
+    _JOB_TOPIC_PROMPT = """You are a tech career expert. Given this job description, extract 5-10 specific technical topics the person should monitor to stay current and competitive in this role.
+
+Focus on:
+- Core technologies and frameworks mentioned
+- Emerging tools in this domain
+- Research areas relevant to the role
+- Industry trends affecting this position
+
+Job Description:
+{job_description}
+
+Return ONLY valid JSON:
+{{"topics": ["topic 1", "topic 2", ...], "role_summary": "one-line role description"}}
+
+Make topics specific enough to search (e.g. "LLM fine-tuning LoRA" not just "AI")."""
+
+    def analyze_job_post(self, job_description: str) -> dict:
+        """Use LLM to extract monitoring topics from a job description."""
+        import json as _json
+        try:
+            from src.llm import get_llm
+            response = get_llm(temperature=0.2).invoke(
+                self._JOB_TOPIC_PROMPT.format(job_description=job_description[:3000])
+            )
+            text = response.content.strip()
+            if text.startswith("```"):
+                parts = text.split("```")
+                text = parts[1] if len(parts) > 1 else text
+                if text.startswith("json"): text = text[4:]
+            result = _json.loads(text.strip())
+            topics = result.get("topics", [])
+            role = result.get("role_summary", "")
+            return {"topics": [t.strip() for t in topics if t.strip()], "role_summary": role}
+        except Exception as e:
+            logger.error(f"analyze_job_post failed: {e}")
+            return {"topics": [], "role_summary": ""}
+
+    def add_topics_from_job(self, user_id: str, job_description: str) -> dict:
+        """Analyze a job post and add extracted topics to the user's monitor list."""
+        result = self.analyze_job_post(job_description)
+        added = []
+        for topic in result.get("topics", []):
+            if self.add_topic(user_id, topic):
+                added.append(topic)
+        return {"added": added, "role_summary": result.get("role_summary", ""), "total": len(added)}
+
     # ─── Lifecycle ────────────────────────────────────────────────────────────
 
     def _scheduled_run(self):

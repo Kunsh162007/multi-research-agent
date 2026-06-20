@@ -5,16 +5,66 @@ import StreamRenderer from './StreamRenderer'
 import FollowUpQuestions from './FollowUpQuestions'
 import ExportButton from './ExportButton'
 import ShareModal from './ShareModal'
-import type { ChatMessage, FinalEvent, ResearchConstraints } from '../types'
+import type { ChatMessage, FinalEvent, ResearchConstraints, ResearchMode } from '../types'
 
 interface Props {
   onConversationCreated: () => void
   loadThreadId?: string
 }
 
+interface ModeConfig {
+  id: ResearchMode
+  icon: string
+  label: string
+  short: string
+  desc: string
+  placeholder: string
+  color: string
+}
+
+const MODES: ModeConfig[] = [
+  {
+    id: 'validate',
+    icon: '⟳',
+    label: 'Validate Idea',
+    short: 'Validate',
+    desc: 'Check if your idea already exists & discover what\'s novel',
+    placeholder: 'Describe your idea or concept to validate against existing work…',
+    color: '#06b6d4',
+  },
+  {
+    id: 'discover',
+    icon: '◈',
+    label: 'Find Tools',
+    short: 'Discover',
+    desc: 'Find the best tools, libraries & frameworks for your use case',
+    placeholder: 'What do you need to build or solve? (e.g. "vector search for RAG")…',
+    color: '#818cf8',
+  },
+  {
+    id: 'explain',
+    icon: '◇',
+    label: 'Learn Concept',
+    short: 'Learn',
+    desc: 'Deep-dive into any technology or concept from basics to advanced',
+    placeholder: 'What technology or concept would you like to understand deeply?…',
+    color: '#34d399',
+  },
+  {
+    id: 'research',
+    icon: '◆',
+    label: 'Deep Research',
+    short: 'Research',
+    desc: 'Comprehensive academic research with citations & expert analysis',
+    placeholder: 'Ask a research question for comprehensive analysis…',
+    color: '#4fc3f7',
+  },
+]
+
 const AUDIENCES = ['general', 'technical', 'academic'] as const
 
 const DEFAULT_CONSTRAINTS: ResearchConstraints = {
+  mode: 'research',
   use_adaptive: true,
   use_reflexion: true,
   use_hyde: false,
@@ -25,23 +75,44 @@ const DEFAULT_CONSTRAINTS: ResearchConstraints = {
 }
 
 const RAG_TOGGLES: [keyof ResearchConstraints, string, string][] = [
-  ['use_adaptive',  'Adaptive',   'Auto-adjusts search depth by query complexity'],
-  ['use_reflexion', 'Reflexion',  'Self-critiques & retries when quality is low'],
-  ['use_hyde',      'HyDE',       'Generates a hypothetical answer to anchor searches'],
-  ['use_rag_fusion','RAG Fusion', 'Runs multiple queries, merges via rank scoring'],
-  ['use_storm',     'STORM',      'Expert personas each contribute unique angles'],
+  ['use_adaptive',   'Adaptive',    'Auto-adjusts depth by query complexity'],
+  ['use_reflexion',  'Reflexion',   'Self-critiques & retries when quality is low'],
+  ['use_hyde',       'HyDE',        'Generates hypothetical answer to anchor searches'],
+  ['use_rag_fusion', 'RAG Fusion',  'Multi-query expansion with rank fusion'],
+  ['use_storm',      'STORM',       'Expert personas each contribute unique angles'],
 ]
 
-const SUGGESTIONS = [
-  'Latest advances in RLHF for large language models',
-  'Mamba vs Transformers: architecture comparison',
-  'State of multimodal AI in 2025',
-  'RAG vs fine-tuning: when to use each',
-]
+const MODE_SUGGESTIONS: Record<ResearchMode, string[]> = {
+  validate: [
+    'Is real-time collaborative editing on documents novel?',
+    'Validate: multi-agent code review assistant',
+    'Is personalized AI tutor based on learning style new?',
+    'Check novelty of AI-powered music composition tool',
+  ],
+  discover: [
+    'Best vector databases for production RAG 2025',
+    'Top frameworks for building AI agents',
+    'Best tools for real-time ML model serving',
+    'Find alternatives to LangChain for LLM orchestration',
+  ],
+  explain: [
+    'How does attention mechanism work in transformers?',
+    'Explain RLHF — from basics to advanced',
+    'What is Mixture of Experts (MoE)?',
+    'How does RAG differ from fine-tuning?',
+  ],
+  research: [
+    'Latest advances in RLHF for large language models',
+    'Mamba vs Transformers: architecture comparison 2025',
+    'State of multimodal AI and vision-language models',
+    'RAG vs fine-tuning: comprehensive analysis',
+  ],
+}
 
 export default function Chat({ onConversationCreated, loadThreadId }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
+  const [mode, setMode] = useState<ResearchMode>('research')
   const [audience, setAudience] = useState<'general' | 'technical' | 'academic'>('general')
   const [constraints, setConstraints] = useState<ResearchConstraints>(DEFAULT_CONSTRAINTS)
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -55,6 +126,8 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { state, start, reset } = useSSE()
   const [activeAssistantId, setActiveAssistantId] = useState<string | null>(null)
+
+  const activeModeConfig = MODES.find(m => m.id === mode) ?? MODES[3]
 
   useEffect(() => {
     if (!loadThreadId) return
@@ -150,6 +223,7 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
     if (!q || state.isStreaming) return
 
     const allDocs = attachedDocs.flatMap(a => a.docs)
+    const mergedConstraints: ResearchConstraints = { ...constraints, mode }
     const userId = `user-${Date.now()}`
     const assistantId = `asst-${Date.now()}`
     setActiveAssistantId(assistantId)
@@ -160,7 +234,7 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
     ])
     setInput('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
-    await start(q, audience, undefined, constraints, allDocs)
+    await start(q, audience, undefined, mergedConstraints, allDocs)
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -197,29 +271,62 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
       <div className="chat-header">
         <div className="chat-header-title">
           <span className="status-dot" />
-          Research Session
+          Intelligence Lab
         </div>
-        <div className="chat-header-sub">Self-RAG · Groq · {AUDIENCES.map(a => (
-          <button
-            key={a}
-            onClick={() => setAudience(a)}
-            className={`audience-chip${audience === a ? ' active' : ''}`}
-          >
-            {a}
-          </button>
-        ))}</div>
+        <div className="chat-header-sub">
+          {MODES.map(m => (
+            <button
+              key={m.id}
+              onClick={() => setMode(m.id)}
+              className={`mode-chip${mode === m.id ? ' active' : ''}`}
+              style={mode === m.id ? { borderColor: `${m.color}55`, color: m.color, background: `${m.color}15` } : {}}
+            >
+              {m.icon} {m.short}
+            </button>
+          ))}
+          <span style={{ color: 'rgba(255,255,255,0.15)', margin: '0 4px' }}>|</span>
+          {AUDIENCES.map(a => (
+            <button
+              key={a}
+              onClick={() => setAudience(a)}
+              className={`audience-chip${audience === a ? ' active' : ''}`}
+            >
+              {a}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Empty state */}
       {isEmpty && (
         <div className="empty-state">
-          <div className="empty-logo">Research AI</div>
-          <p className="empty-sub">What would you like to explore today?</p>
+          <div className="empty-logo">◆ Intelligence Lab ◆</div>
+          <h1 className="empty-title">What would you like to explore?</h1>
+
+          <div className="mode-cards">
+            {MODES.map(m => (
+              <button
+                key={m.id}
+                onClick={() => setMode(m.id)}
+                className={`mode-card${mode === m.id ? ' selected' : ''}`}
+                style={mode === m.id ? {
+                  borderColor: `${m.color}60`,
+                  background: `linear-gradient(135deg, ${m.color}12 0%, ${m.color}06 100%)`,
+                  boxShadow: `0 0 0 1px ${m.color}30, 0 8px 32px ${m.color}12`,
+                } : {}}
+              >
+                <span className="mode-card-icon" style={{ color: m.color }}>{m.icon}</span>
+                <div className="mode-card-label" style={mode === m.id ? { color: m.color } : {}}>{m.label}</div>
+                <div className="mode-card-desc">{m.desc}</div>
+              </button>
+            ))}
+          </div>
+
           <div className="suggestions-grid">
-            {SUGGESTIONS.map(q => (
+            {(MODE_SUGGESTIONS[mode] ?? MODE_SUGGESTIONS.research).map(q => (
               <button
                 key={q}
-                onClick={() => setInput(q)}
+                onClick={() => { setInput(q); textareaRef.current?.focus() }}
                 className="suggestion-chip"
               >
                 {q}
@@ -244,7 +351,8 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
               ) : (
                 <div className="assistant-message-wrap">
                   <div className="message-meta assistant-meta">
-                    Research AI · {fmtTime(msg.timestamp)}
+                    <span style={{ color: activeModeConfig.color }}>{activeModeConfig.icon}</span>
+                    Intelligence Lab · {fmtTime(msg.timestamp)}
                     {!msg.isStreaming && msg.thread_id && (
                       <span className="thread-id">{msg.thread_id.slice(0, 8)}</span>
                     )}
@@ -271,7 +379,7 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
 
                     {msg.thread_id && !msg.isStreaming && (
                       <div className="action-bar">
-                        <ExportButton threadId={msg.thread_id} />
+                        <ExportButton threadId={msg.thread_id} report={msg.report ?? msg.content} />
                         <button
                           className="btn-ghost"
                           onClick={() => setShareThreadId(msg.thread_id!)}
@@ -307,7 +415,7 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
           {/* Advanced panel */}
           {showAdvanced && (
             <div className="advanced-panel">
-              <p className="advanced-title">RAG Options</p>
+              <p className="advanced-title">Search Engine Options</p>
               <div className="rag-grid">
                 {RAG_TOGGLES.map(([key, label, desc]) => (
                   <button
@@ -328,7 +436,7 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
               </div>
               <div className="advanced-controls">
                 <label className="control-label">
-                  Max iterations
+                  Iterations
                   <input
                     type="number" min={1} max={10}
                     value={constraints.max_iterations ?? 3}
@@ -339,7 +447,7 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
                   />
                 </label>
                 <label className="control-label">
-                  Quality target
+                  Quality bar
                   <input
                     type="number" min={0} max={100}
                     value={constraints.quality_target ?? 75}
@@ -350,6 +458,21 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
                   />
                 </label>
               </div>
+
+              {/* URL input row */}
+              <div className="url-input-row" style={{ marginTop: '12px', borderTop: '1px solid var(--glass-border)', paddingTop: '12px' }}>
+                <input
+                  type="url"
+                  className="url-input"
+                  placeholder="Paste a URL to include as context…"
+                  value={urlInput}
+                  onChange={e => setUrlInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddUrl()}
+                />
+                <button className="btn-primary" onClick={handleAddUrl} disabled={!urlInput.trim() || urlLoading}>
+                  {urlLoading ? '…' : 'Add URL'}
+                </button>
+              </div>
             </div>
           )}
 
@@ -359,8 +482,11 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
               className={`btn-ghost options-btn${showAdvanced ? ' active' : ''}`}
               onClick={() => setShowAdvanced(v => !v)}
             >
-              {showAdvanced ? '▴' : '▾'} Options
+              {showAdvanced ? '▴' : '▾'} Engine
             </button>
+            <span style={{ fontSize: '10px', color: 'var(--text-4)', marginLeft: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              · {activeModeConfig.label}
+            </span>
           </div>
 
           {/* Attached context chips */}
@@ -377,23 +503,6 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
             </div>
           )}
 
-          {/* URL input row */}
-          {showAdvanced && (
-            <div className="url-input-row">
-              <input
-                type="url"
-                className="url-input"
-                placeholder="Paste a URL to include as context…"
-                value={urlInput}
-                onChange={e => setUrlInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAddUrl()}
-              />
-              <button className="btn-primary" onClick={handleAddUrl} disabled={!urlInput.trim() || urlLoading}>
-                {urlLoading ? '…' : 'Add'}
-              </button>
-            </div>
-          )}
-
           {uploadError && <div className="upload-error">{uploadError}</div>}
 
           {/* Textarea */}
@@ -403,7 +512,7 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
             <textarea
               ref={textareaRef}
               className="chat-input"
-              placeholder="Ask a research question…"
+              placeholder={activeModeConfig.placeholder}
               rows={1}
               value={input}
               onChange={handleInputChange}
@@ -414,14 +523,19 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
               onClick={() => handleSubmit()}
               disabled={!input.trim() || state.isStreaming}
               className="send-btn"
+              style={!state.isStreaming && input.trim() ? {
+                borderColor: `${activeModeConfig.color}60`,
+                color: activeModeConfig.color,
+                background: `linear-gradient(135deg, ${activeModeConfig.color}18, ${activeModeConfig.color}08)`,
+              } : {}}
             >
               {state.isStreaming ? (
                 <span className="flex gap-1 items-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent typing-dot" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent typing-dot" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent typing-dot" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent typing-dot" style={{ background: 'var(--accent)' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent typing-dot" style={{ background: 'var(--accent)' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent typing-dot" style={{ background: 'var(--accent)' }} />
                 </span>
-              ) : 'Research ↑'}
+              ) : `${activeModeConfig.icon} Send`}
             </button>
           </div>
         </div>

@@ -17,23 +17,18 @@ Fix spelling, expand abbreviations, make implicit context explicit. Keep it conc
 Query: {query}
 Rewritten query (plain text only):"""
 
-_RETRIEVE = """You are an autonomous research agent. Choose tools: web_search, arxiv_search, github_search, wikipedia_search, semantic_scholar_search, crossref_search.
+_RETRIEVE_FALLBACK = """You are an autonomous research agent. Choose tools: web_search, arxiv_search, github_search, wikipedia_search, semantic_scholar_search, crossref_search.
 Query: {query} | Angles: {angles} | Findings: {num_findings} | Iteration: {iteration}
 {reflection_hint}
-Pick 1-3 tool calls addressing least-covered angles. Use academic sources (arxiv, semantic_scholar, crossref) for research topics.
+Pick 1-3 tool calls addressing least-covered angles.
 Return ONLY valid JSON: {{"tool_calls":[{{"tool":"tool_name","query":"search string"}}]}}"""
 
 _GENERATE = """Write a draft answer grounded ONLY in findings. Use inline citations [1],[2]...
-Query: {query} | Angles: {angles}
+Query: {query} | Mode: {mode} | Angles: {angles}
 Findings:
 {findings}
-Write thoroughly, covering every angle."""
-
-_SYNTHESIZE = """Transform the draft into a polished report for a {audience} audience.
-Query: {query}
-Draft: {draft}
-Sources: {sources}
-Structure: 1.Executive Summary 2.One section per angle with citations[N] 3.Conclusion 4.References"""
+Write thoroughly, covering every angle. For 'validate' mode focus on novelty analysis.
+For 'discover' mode focus on tool comparison. For 'explain' mode focus on clear explanation."""
 
 _VALIDATE = """Score this report 0-100 on accuracy,completeness,clarity,overall.
 Query: {query} | Report: {report}
@@ -91,27 +86,36 @@ def enhance(state: ResearchState) -> dict:
     result = _llm_json(_ENHANCE.format(query=query),
         fallback={"clarified_query": query, "research_angles": [query]})
 
+    constraints = state.get("constraints", {})
+
+    # Auto-detect mode if not set by user
+    mode = constraints.get("mode")
+    if not mode:
+        from src.agents import detect_mode
+        mode = detect_mode(query)
+        constraints = {**constraints, "mode": mode}
+
     base = {
         "clarified_query": result.get("clarified_query", state["query"]),
         "research_angles": result.get("research_angles", [state["query"]]),
         "iteration": 0, "needs_retrieval": True, "retrieved_docs": [], "findings": [],
         "draft_answer": "", "answer_quality": {}, "report": "", "validation": {},
         "done": False, "status": "running", "error": None,
+        "constraints": constraints,
     }
 
     # STORM multi-perspective (if enabled)
-    constraints = state.get("constraints", {})
     if constraints.get("use_storm"):
         from src.advanced_rag import storm_enhance
         storm_update = storm_enhance({**state, **base})
         if storm_update.get("research_angles"):
             base["research_angles"] = storm_update["research_angles"]
 
-    # Adaptive RAG (if enabled — auto-adjusts quality_target + max_iterations)
+    # Adaptive RAG (if enabled)
     if constraints.get("use_adaptive", True):
         from src.advanced_rag import classify_and_adapt
         adapt = classify_and_adapt({**state, **base})
-        base["constraints"] = adapt.get("constraints", constraints)
+        base["constraints"] = adapt.get("constraints", base["constraints"])
 
     return base
 
@@ -122,6 +126,7 @@ def retrieve(state: ResearchState) -> dict:
 
     constraints = state.get("constraints", {})
     clarified = state.get("clarified_query", state["query"])
+    mode = constraints.get("mode", "research")
 
     # HyDE retrieval
     if constraints.get("use_hyde"):
@@ -133,67 +138,74 @@ def retrieve(state: ResearchState) -> dict:
         from src.advanced_rag import rag_fusion_retrieve
         return rag_fusion_retrieve(state)
 
-    # Standard retrieval with optional Reflexion hint
     reflection = state.get("status", "")
     reflection_hint = f"REFLEXION HINT: {reflection}\n" if reflection.startswith("reflecting:") else ""
 
-    result = _llm_json(_RETRIEVE.format(
-        query=clarified, angles=state.get("research_angles", []),
-        num_findings=len(state.get("findings", [])),
-        iteration=state.get("iteration", 0),
-        reflection_hint=reflection_hint,
-    ), fallback={"tool_calls": [{"tool": "web_search", "query": clarified}]})
+    # Use mode-specific parallel agents
+    from src.agents import build_mode_search_calls, run_parallel_agents
+    calls = build_mode_search_calls(
+        query=clarified,
+        mode=mode,
+        angles=state.get("research_angles", []),
+        reflection_hint=reflection_hint.strip(),
+    )
 
-    tool_calls = result.get("tool_calls", [])
+    # Fallback: also ask LLM which tool calls to make (for complex queries)
+    if state.get("iteration", 0) > 0:
+        try:
+            fallback_result = _llm_json(_RETRIEVE_FALLBACK.format(
+                query=clarified, angles=state.get("research_angles", []),
+                num_findings=len(state.get("findings", [])),
+                iteration=state.get("iteration", 0),
+                reflection_hint=reflection_hint,
+            ), fallback={"tool_calls": []})
+            for tc in fallback_result.get("tool_calls", []):
+                if tc not in calls:
+                    calls.append(tc)
+        except Exception as e:
+            logger.warning(f"LLM fallback tool selection skipped: {e}")
 
-    # Add multi-query expansion calls
-    try:
-        from src.advanced_rag import multi_query_expand
-        for q in multi_query_expand(clarified, state.get("research_angles", []))[:2]:
-            tool_calls.append({"tool": "web_search", "query": q})
-    except Exception as e:
-        logger.warning(f"Multi-query expansion skipped: {e}")
+    all_docs = run_parallel_agents(calls)
 
-    # Run all tool calls in parallel
-    all_docs: list = []
-    def _run_call(call: dict) -> list:
-        tool_fn = TOOL_REGISTRY.get(call.get("tool", "web_search"), TOOL_REGISTRY["web_search"])
-        return tool_fn(call.get("query", clarified))
-
-    with ThreadPoolExecutor(max_workers=min(6, len(tool_calls) or 1)) as pool:
-        futures = {pool.submit(_run_call, c): c for c in tool_calls}
-        for fut in as_completed(futures):
-            try:
-                all_docs.extend(fut.result())
-            except Exception as e:
-                logger.error(f"Tool call failed: {e}")
-
-    # Preserve preloaded docs (uploaded files / URL context) and merge
+    # Preserve preloaded docs (uploaded files / URL context)
     preloaded = [d for d in state.get("retrieved_docs", []) if d.get("preloaded")]
     return {"retrieved_docs": _dedup_docs(preloaded + all_docs)}
 
 
 def generate(state: ResearchState) -> dict:
     findings = state.get("findings", [])
+    mode = state.get("constraints", {}).get("mode", "research")
     findings_text = "\n".join(
         f"[{f.get('citation_index', i+1)}] {f.get('source','?')}: {f.get('text','')[:500]}"
         for i, f in enumerate(findings)
     ) or "(no findings yet)"
     response = get_llm(temperature=0.3).invoke(_GENERATE.format(
         query=state.get("clarified_query", state["query"]),
-        angles=state.get("research_angles", []), findings=findings_text,
+        mode=mode,
+        angles=state.get("research_angles", []),
+        findings=findings_text,
     ))
     return {"draft_answer": response.content}
 
 
 def synthesize(state: ResearchState) -> dict:
     findings = state.get("findings", [])
-    sources = "\n".join(f"[{f.get('citation_index',i+1)}] {f.get('source','?')} — {f.get('url','')}" for i, f in enumerate(findings)) or "(none)"
+    sources = "\n".join(
+        f"[{f.get('citation_index',i+1)}] {f.get('source','?')} — {f.get('url','')}"
+        for i, f in enumerate(findings)
+    ) or "(none)"
+    mode = state.get("constraints", {}).get("mode", "research")
     audience = state.get("user_context", {}).get("audience", "general")
-    response = get_llm(temperature=0.3).invoke(_SYNTHESIZE.format(
-        audience=audience, query=state.get("clarified_query", state["query"]),
-        draft=state.get("draft_answer", ""), sources=sources,
-    ))
+
+    from src.agents import MODE_SYNTHESIS_PROMPTS
+    prompt_template = MODE_SYNTHESIS_PROMPTS.get(mode, MODE_SYNTHESIS_PROMPTS["research"])
+    prompt = prompt_template.format(
+        query=state.get("clarified_query", state["query"]),
+        draft=state.get("draft_answer", ""),
+        sources=sources,
+        audience=audience,
+    )
+    response = get_llm(temperature=0.3).invoke(prompt)
     return {"report": response.content}
 
 
@@ -203,7 +215,6 @@ def validate(state: ResearchState) -> dict:
         report=(state.get("report") or "")[:2000],
     ), fallback={"accuracy":70,"completeness":70,"clarity":70,"overall":70,"summary":"Validation unavailable"})
 
-    # Generate follow-up suggestions and attach to validation
     try:
         from src.suggestions import generate_follow_ups
         questions = generate_follow_ups(state.get("clarified_query", state["query"]), state.get("report", ""))

@@ -13,16 +13,16 @@ interface Props {
 }
 
 const NODE_LABELS: Record<string, string> = {
-  enhance:          'Decomposing query',
-  decide_retrieval: 'Deciding retrieval strategy',
+  enhance:          'Mapping query',
+  decide_retrieval: 'Routing agents',
   retrieve:         'Searching sources',
-  grade_relevance:  'Grading relevance',
-  generate:         'Drafting report',
+  grade_relevance:  'Filtering results',
+  generate:         'Drafting analysis',
   grade_answer:     'Quality check',
-  reflect:          'Reflecting on gaps',
+  reflect:          'Identifying gaps',
   synthesize:       'Synthesizing report',
-  validate:         'Validating report',
-  resume:           'Resuming from checkpoint',
+  validate:         'Validating output',
+  resume:           'Resuming session',
 }
 
 function inferSourceType(url: string): string {

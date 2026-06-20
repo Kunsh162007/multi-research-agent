@@ -52,7 +52,10 @@ export interface Stats {
 export interface DigestItem { id: number; topic: string; title: string; url: string; discovered_at: string; item_type: string }
 export interface Digest { since: string; total_new: number; by_topic: Record<string, DigestItem[]> }
 
+export type ResearchMode = 'validate' | 'discover' | 'explain' | 'research'
+
 export interface ResearchConstraints {
+  mode?: ResearchMode
   use_hyde?: boolean
   use_rag_fusion?: boolean
   use_storm?: boolean

@@ -50,6 +50,10 @@ class ResearchRequest(BaseModel):
 class AddTopicRequest(BaseModel):
     topic: str
 
+class JobPostRequest(BaseModel):
+    job_description: str
+    auto_add: bool = False
+
 class TagRequest(BaseModel):
     tag: str
 
@@ -276,6 +280,20 @@ async def get_digest(user: dict = Depends(get_current_user)):
 async def mark_visit(user: dict = Depends(get_current_user)):
     monitor.mark_visited(user["google_id"])
     return {"ok": True}
+
+@app.post("/monitor/job-post")
+async def analyze_job_post(body: JobPostRequest, user: dict = Depends(get_current_user)):
+    if not body.job_description.strip():
+        raise HTTPException(400, "job_description is required")
+    if body.auto_add:
+        result = await asyncio.get_event_loop().run_in_executor(
+            None, monitor.add_topics_from_job, user["google_id"], body.job_description
+        )
+    else:
+        result = await asyncio.get_event_loop().run_in_executor(
+            None, monitor.analyze_job_post, body.job_description
+        )
+    return result
 
 @app.on_event("startup")
 async def startup(): monitor.start()

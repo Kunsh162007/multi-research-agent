@@ -14,6 +14,7 @@ export default function App() {
   const [loadThreadId, setLoadThreadId] = useState<string | undefined>()
   const [historyRefresh, setHistoryRefresh] = useState(0)
   const [view, setView] = useState<MainView>('chat')
+  const [chatKey, setChatKey] = useState(0)
 
   if (!user) {
     return <Login onLogin={login} />
@@ -22,6 +23,7 @@ export default function App() {
   function handleNewChat() {
     setActiveThreadId(undefined)
     setLoadThreadId(undefined)
+    setChatKey(n => n + 1)   // force Chat remount → clears messages state
     setView('chat')
   }
 
@@ -36,7 +38,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface">
+    <div className="flex h-screen overflow-hidden" style={{ background: 'transparent' }}>
       <Sidebar
         user={user}
         onLogout={logout}
@@ -58,6 +60,7 @@ export default function App() {
           )}
           {view === 'chat' && (
             <Chat
+              key={chatKey}
               onConversationCreated={handleConversationCreated}
               loadThreadId={loadThreadId}
             />
