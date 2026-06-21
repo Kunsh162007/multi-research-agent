@@ -295,6 +295,9 @@ async def analyze_job_post(body: JobPostRequest, user: dict = Depends(get_curren
         )
     return result
 
+@app.get("/health")
+async def health(): return {"ok": True}
+
 @app.on_event("startup")
 async def startup(): monitor.start()
 
