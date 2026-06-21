@@ -8,9 +8,11 @@ logger = logging.getLogger(__name__)
 
 _ENHANCE = """You are a research query enhancer. Transform the user's query into a precise research plan.
 Query: {query}
+{prior_context}
 Return ONLY valid JSON:
 {{"clarified_query":"A self-contained specific version","research_angles":["angle 1","angle 2","angle 3","angle 4"]}}
-Produce 3-5 distinct angles that together give complete coverage."""
+Produce 3-5 distinct angles that together give complete coverage.
+If prior research context is provided, build upon it — focus on aspects NOT already covered."""
 
 _REWRITE_QUERY = """Rewrite this research query to be clearer and more searchable.
 Fix spelling, expand abbreviations, make implicit context explicit. Keep it concise.
@@ -83,7 +85,9 @@ def _dedup_docs(docs: list, threshold: float = 0.75) -> list:
 
 def enhance(state: ResearchState) -> dict:
     query = _rewrite_query(state["query"])
-    result = _llm_json(_ENHANCE.format(query=query),
+    prior = state.get("user_context", {}).get("prior_research", "")
+    prior_context = f"Prior research context (build upon this, don't repeat it):\n{prior}" if prior else ""
+    result = _llm_json(_ENHANCE.format(query=query, prior_context=prior_context),
         fallback={"clarified_query": query, "research_angles": [query]})
 
     constraints = state.get("constraints", {})

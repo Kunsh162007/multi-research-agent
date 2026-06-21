@@ -5,6 +5,12 @@ services:
     rootDir: .
     buildCommand: pip install -r backend/requirements.txt && cd frontend && npm ci && npm run build
     startCommand: cd backend && uvicorn src.api:app --host 0.0.0.0 --port $PORT
+    # Persistent disk — keeps SQLite databases alive across deploys/restarts.
+    # Requires Render Starter plan (~$7/mo for the web service).
+    disk:
+      name: research-data
+      mountPath: /data
+      sizeGB: 1
     envVars:
       - key: GROQ_API_KEY
         sync: false          # set manually in Render dashboard — free at console.groq.com
@@ -24,3 +30,13 @@ services:
         value: "8"
       - key: QUALITY_TARGET
         value: "75"
+      - key: DATA_DIR
+        value: /data            # point all SQLite DBs to the persistent disk
+      - key: SMTP_HOST
+        value: smtp.gmail.com   # Gmail SMTP — use any SMTP provider
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false             # your Gmail address (e.g. you@gmail.com)
+      - key: SMTP_PASS
+        sync: false             # Gmail App Password — myaccount.google.com/apppasswords

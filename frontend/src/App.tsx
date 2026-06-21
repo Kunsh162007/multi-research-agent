@@ -38,20 +38,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'transparent' }}>
-      {/* Ambient orange glow particles */}
-      {[
-        { size: 2, left: '12%', duration: '20s', delay: '0s' },
-        { size: 3, left: '38%', duration: '25s', delay: '5s' },
-        { size: 2, left: '62%', duration: '18s', delay: '9s' },
-        { size: 4, left: '80%', duration: '22s', delay: '3s' },
-      ].map((p, i) => (
-        <div
-          key={i}
-          className="particle"
-          style={{ width: p.size, height: p.size, left: p.left, animationDuration: p.duration, animationDelay: p.delay, background: 'rgba(249,115,22,0.5)' }}
-        />
-      ))}
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
 
       <Sidebar
         user={user}

@@ -128,20 +128,23 @@ class KnowledgeMonitor:
 
     def sync_topic(self, user_id: str, topic: str) -> int:
         """Fetch and store new content for one topic. Returns count of new items."""
+        from datetime import datetime
+        year = datetime.now().year
+
         new_count = 0
 
-        # Academic papers
+        # Academic papers — use current year for fresh results
         try:
-            papers = arxiv_search(f"{topic} recent advances 2024 2025", max_results=10)
+            papers = arxiv_search(f"{topic} {year}", max_results=10)
             for paper in papers:
                 if self._store_item(user_id, topic, paper, "arxiv"):
                     new_count += 1
         except Exception as e:
             logger.error(f"arxiv sync failed for topic={topic}: {e}")
 
-        # Web/news
+        # Web/news — use current year to avoid stale results
         try:
-            results = web_search(f"{topic} new technique breakthrough 2025", num_results=5)
+            results = web_search(f"{topic} latest {year}", num_results=5)
             for result in results:
                 if self._store_item(user_id, topic, result, "web"):
                     new_count += 1
@@ -244,21 +247,20 @@ class KnowledgeMonitor:
 
     # ─── Job post → topics ────────────────────────────────────────────────────
 
-    _JOB_TOPIC_PROMPT = """You are a tech career expert. Given this job description, extract 5-10 specific technical topics the person should monitor to stay current and competitive in this role.
+    _JOB_TOPIC_PROMPT = """You are a career intelligence expert. Given this job description, identify 5-8 broad technical domains the person should monitor to stay competitive.
 
-Focus on:
-- Core technologies and frameworks mentioned
-- Emerging tools in this domain
-- Research areas relevant to the role
-- Industry trends affecting this position
+Rules for topics:
+- Use broad, human-readable domains, NOT paper titles or narrow techniques
+- Each topic should be 2-5 words that describe a field or area (e.g. "Retrieval-Augmented Generation", "LLM Inference Optimization", "AI Agent Frameworks")
+- Think at the level of a conference track or textbook chapter, not a specific paper
+- Capture the SEMANTIC intent — what area of knowledge matters for this role
+- Avoid redundancy; each topic should cover a distinct domain
 
 Job Description:
 {job_description}
 
 Return ONLY valid JSON:
-{{"topics": ["topic 1", "topic 2", ...], "role_summary": "one-line role description"}}
-
-Make topics specific enough to search (e.g. "LLM fine-tuning LoRA" not just "AI")."""
+{{"topics": ["Domain 1", "Domain 2", ...], "role_summary": "one-line role description"}}"""
 
     def analyze_job_post(self, job_description: str) -> dict:
         """Use LLM to extract monitoring topics from a job description."""
@@ -294,9 +296,18 @@ Make topics specific enough to search (e.g. "LLM fine-tuning LoRA" not just "AI"
 
     def _scheduled_run(self):
         logger.info("Monitor scheduled sweep starting…")
+        from src.email_notify import send_monitor_digest
+        from src.history import history_store
+
         cursor = self.conn.execute("SELECT DISTINCT user_id FROM user_topics")
         for (user_id,) in cursor.fetchall():
-            self.sync_user(user_id)
+            results = self.sync_user(user_id)
+            total_new = sum(results.values())
+            if total_new > 0:
+                user = history_store.get_user(user_id)
+                if user and user.get("email"):
+                    digest = self.get_digest(user_id)
+                    send_monitor_digest(user["email"], digest)
 
     def start(self):
         if not self.scheduler.running:
