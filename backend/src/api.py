@@ -51,7 +51,10 @@ class AddTopicRequest(BaseModel):
     topic: str
 
 class JobPostRequest(BaseModel):
-    job_description: str
+    job_description: str = ""
+    job_position:   str = ""
+    company_name:   str = ""
+    company_type:   str = "other"   # mnc | startup | organization | other
     auto_add: bool = False
 
 class TagRequest(BaseModel):
@@ -283,15 +286,21 @@ async def mark_visit(user: dict = Depends(get_current_user)):
 
 @app.post("/monitor/job-post")
 async def analyze_job_post(body: JobPostRequest, user: dict = Depends(get_current_user)):
-    if not body.job_description.strip():
-        raise HTTPException(400, "job_description is required")
+    if not body.job_description.strip() and not body.job_position.strip():
+        raise HTTPException(400, "job_description or job_position is required")
+    ctx = {
+        "job_description": body.job_description,
+        "job_position":    body.job_position,
+        "company_name":    body.company_name,
+        "company_type":    body.company_type,
+    }
     if body.auto_add:
         result = await asyncio.get_event_loop().run_in_executor(
-            None, monitor.add_topics_from_job, user["google_id"], body.job_description
+            None, monitor.add_topics_from_job, user["google_id"], ctx
         )
     else:
         result = await asyncio.get_event_loop().run_in_executor(
-            None, monitor.analyze_job_post, body.job_description
+            None, monitor.analyze_job_post, ctx
         )
     return result
 

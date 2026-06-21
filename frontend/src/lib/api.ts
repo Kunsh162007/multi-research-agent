@@ -70,9 +70,12 @@ export const getKnowledge = (topic?: string, limit = 50): Promise<{ items: Knowl
 }
 export const getDigest = () => api<Digest>('GET', '/monitor/digest')
 export const markVisited = () => api('POST', '/monitor/visit')
-export const analyzeJobPost = (job_description: string, auto_add = false) =>
+export const analyzeJobPost = (
+  payload: { job_description?: string; job_position?: string; company_name?: string; company_type?: string },
+  auto_add = false
+) =>
   api<{ topics: string[]; role_summary: string; added?: string[]; total?: number }>(
-    'POST', '/monitor/job-post', { job_description, auto_add }
+    'POST', '/monitor/job-post', { ...payload, auto_add }
   )
 
 // ── File upload & URL fetch ───────────────────────────────────────────────────

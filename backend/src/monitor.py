@@ -247,29 +247,40 @@ class KnowledgeMonitor:
 
     # ─── Job post → topics ────────────────────────────────────────────────────
 
-    _JOB_TOPIC_PROMPT = """You are a career intelligence expert. Given this job description, identify 5-8 broad technical domains the person should monitor to stay competitive.
+    _JOB_TOPIC_PROMPT = """You are a career intelligence expert. Identify 6-8 broad technical domains someone should monitor to stay competitive.
+
+Context:
+- Job Position: {job_position}
+- Company: {company_name} ({company_type})
+- Job Description: {job_description}
+
+Company-type guidance:
+- MNC: include enterprise scale, compliance, global trends, industry standards
+- Startup: include emerging tech, rapid iteration, open-source ecosystem, funding trends
+- Organization/NGO: include policy, impact measurement, sustainability, sector-specific tech
+- Other: infer from position and description
 
 Rules for topics:
-- Use broad, human-readable domains, NOT paper titles or narrow techniques
-- Each topic should be 2-5 words that describe a field or area (e.g. "Retrieval-Augmented Generation", "LLM Inference Optimization", "AI Agent Frameworks")
-- Think at the level of a conference track or textbook chapter, not a specific paper
-- Capture the SEMANTIC intent — what area of knowledge matters for this role
-- Avoid redundancy; each topic should cover a distinct domain
-
-Job Description:
-{job_description}
+- Broad, human-readable domain names (2-5 words), NOT paper titles or narrow techniques
+- Think: conference track or textbook chapter level (e.g. "LLM Inference Optimization", "AI Agent Orchestration")
+- Each topic must be meaningfully distinct — no overlap
+- Tailor specifically to the company type and role, not generic AI topics
 
 Return ONLY valid JSON:
-{{"topics": ["Domain 1", "Domain 2", ...], "role_summary": "one-line role description"}}"""
+{{"topics": ["Domain 1", "Domain 2", ...], "role_summary": "one-line role + company description"}}"""
 
-    def analyze_job_post(self, job_description: str) -> dict:
-        """Use LLM to extract monitoring topics from a job description."""
+    def analyze_job_post(self, ctx: dict) -> dict:
+        """Use LLM to extract monitoring topics from job context dict."""
         import json as _json
         try:
             from src.llm import get_llm
-            response = get_llm(temperature=0.2).invoke(
-                self._JOB_TOPIC_PROMPT.format(job_description=job_description[:3000])
+            prompt = self._JOB_TOPIC_PROMPT.format(
+                job_position=ctx.get("job_position", "Not specified"),
+                company_name=ctx.get("company_name", "Not specified"),
+                company_type=ctx.get("company_type", "other").upper(),
+                job_description=ctx.get("job_description", "")[:2000],
             )
+            response = get_llm(temperature=0.2).invoke(prompt)
             text = response.content.strip()
             if text.startswith("```"):
                 parts = text.split("```")
@@ -283,9 +294,9 @@ Return ONLY valid JSON:
             logger.error(f"analyze_job_post failed: {e}")
             return {"topics": [], "role_summary": ""}
 
-    def add_topics_from_job(self, user_id: str, job_description: str) -> dict:
-        """Analyze a job post and add extracted topics to the user's monitor list."""
-        result = self.analyze_job_post(job_description)
+    def add_topics_from_job(self, user_id: str, ctx: dict) -> dict:
+        """Analyze job context and add extracted topics to the user's monitor list."""
+        result = self.analyze_job_post(ctx)
         added = []
         for topic in result.get("topics", []):
             if self.add_topic(user_id, topic):

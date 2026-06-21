@@ -190,14 +190,17 @@ def build_mode_search_calls(
         search_q = f"{hint} {target}".strip() if hint else target
         calls.append({"tool": tool, "query": search_q})
 
-    # Secondary calls — direct query through top 2 tools not yet used
+    # Secondary calls — run ALL remaining tools against the base query for maximum coverage
     used_tools = {c["tool"] for c in calls}
     for tool in tools:
         if tool not in used_tools:
             extra_q = f"{reflection_hint} {query}".strip() if reflection_hint else query
             calls.append({"tool": tool, "query": extra_q})
-            if len(calls) >= 8:
-                break
+
+    # Tertiary pass — re-run top tools on first angle with different hint for diversity
+    if angles and len(calls) < 14:
+        for tool in tools[:2]:
+            calls.append({"tool": tool, "query": f"{angles[0]} latest research {__import__('datetime').date.today().year}"})
 
     return calls
 
