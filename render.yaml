@@ -17,7 +17,7 @@ services:
       - key: MODEL
         value: llama-3.3-70b-versatile
       - key: CORS_ORIGINS
-        value: https://research-assistant.onrender.com
+        value: https://research-assistant-0g24.onrender.com
       - key: MONITOR_INTERVAL_HOURS
         value: "24"
       - key: MAX_ITERATIONS
