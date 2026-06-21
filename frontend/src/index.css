@@ -570,7 +570,13 @@ textarea::placeholder { color: var(--text-4); }
 .btn-ghost:hover { color: var(--text-2); }
 
 /* ── StreamRenderer ──────────────────────────────────────────────── */
-.stream-root { display: flex; flex-direction: column; gap: 16px; }
+.stream-root    { display: flex; flex-direction: column; gap: 16px; }
+.sources-section { }
+.report-section  { }
+.validation-scores {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 12px; margin-bottom: 12px;
+}
 
 .activity-log {
   padding: 12px 14px;
