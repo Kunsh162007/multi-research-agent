@@ -9,7 +9,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from src.config import SMTP_HOST, SMTP_PASS, SMTP_PORT, SMTP_USER
+from src.config import APP_URL, SMTP_HOST, SMTP_PASS, SMTP_PORT, SMTP_USER
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ def send_monitor_digest(to_email: str, digest: dict) -> bool:
           <td style="padding:16px 28px;border-top:1px solid #1e2128;">
             <p style="margin:0;font-size:11px;color:#36363e;text-align:center;">
               IntelLab AI Research Intelligence Suite &nbsp;·&nbsp;
-              <a href="https://research-assistant-0g24.onrender.com" style="color:#f97316;text-decoration:none;">
+              <a href="{APP_URL}" style="color:#f97316;text-decoration:none;">
                 Open App
               </a>
             </p>

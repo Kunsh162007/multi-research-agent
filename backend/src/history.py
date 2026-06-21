@@ -1,6 +1,8 @@
-import json, sqlite3, secrets
+import json, logging, sqlite3, secrets
 from datetime import datetime, timezone
 from src.config import HISTORY_DB
+
+logger = logging.getLogger(__name__)
 
 
 class HistoryStore:
@@ -9,6 +11,10 @@ class HistoryStore:
         self._init_db()
 
     def _init_db(self):
+        # WAL mode: allows concurrent reads while writes are in progress
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA synchronous=NORMAL")
+        self.conn.execute("PRAGMA foreign_keys=ON")
         self.conn.executescript("""
             CREATE TABLE IF NOT EXISTS users (
                 google_id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL,
@@ -48,7 +54,8 @@ class HistoryStore:
                 ON CONFLICT(google_id) DO UPDATE SET name=excluded.name,picture=excluded.picture,last_login=excluded.last_login
             """, (google_id, email, name, picture, now, now))
             self.conn.commit()
-        except Exception: pass
+        except Exception:
+            logger.exception("upsert_user failed for %s", google_id)
 
     def get_user(self, google_id):
         r = self.conn.execute("SELECT google_id,email,name,picture,created_at,last_login FROM users WHERE google_id=?", (google_id,)).fetchone()
@@ -60,7 +67,8 @@ class HistoryStore:
             now = self._now()
             self.conn.execute("INSERT OR IGNORE INTO conversations VALUES(?,?,?,?,?)", (thread_id, user_id, title[:60], now, now))
             self.conn.commit()
-        except Exception: pass
+        except Exception:
+            logger.exception("create_conversation failed for thread %s", thread_id)
 
     def add_message(self, thread_id, user_id, role, content, metadata=None):
         try:
@@ -68,7 +76,8 @@ class HistoryStore:
                 (thread_id, user_id, role, content, json.dumps(metadata) if metadata else None, self._now()))
             self.conn.execute("UPDATE conversations SET updated_at=? WHERE thread_id=? AND user_id=?", (self._now(), thread_id, user_id))
             self.conn.commit()
-        except Exception: pass
+        except Exception:
+            logger.exception("add_message failed for thread %s", thread_id)
 
     def get_messages(self, thread_id, user_id):
         rows = self.conn.execute("SELECT role,content,metadata,created_at FROM messages WHERE thread_id=? AND user_id=? ORDER BY id", (thread_id, user_id)).fetchall()

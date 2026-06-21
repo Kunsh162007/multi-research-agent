@@ -1,12 +1,14 @@
-import asyncio, logging
+import asyncio, logging, threading, time
+from collections import defaultdict, deque
 from typing import Optional
 import jwt as pyjwt
-from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, status
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, Response, HTMLResponse
+from fastapi.middleware.base import BaseHTTPMiddleware
+from fastapi.responses import StreamingResponse, Response, HTMLResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import os
 
 from src.auth import create_jwt, decode_jwt, verify_google_token
@@ -15,20 +17,57 @@ from src.history import history_store
 from src.monitor import monitor
 from src.runner import resume_research, run_research
 
+# ── Structured logging ─────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+)
 logger = logging.getLogger(__name__)
-app = FastAPI(title="Agentic Research Assistant", version="2.0.0")
+
+app = FastAPI(title="IntelLab Research API", version="2.0.0", docs_url=None, redoc_url=None)
 
 _UPLOAD_MAX_BYTES = 10 * 1024 * 1024  # 10 MB
 
+# ── Security headers middleware ────────────────────────────────────────────────
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        # Don't cache API responses
+        if request.url.path.startswith("/") and not request.url.path.startswith("/assets"):
+            response.headers.setdefault("Cache-Control", "no-store, no-cache, must-revalidate")
+        return response
+
+# ── In-memory rate limiter (sliding window, thread-safe) ──────────────────────
+_rate_buckets: dict = defaultdict(deque)
+_rate_lock = threading.Lock()
+
+def _rate_check(key: str, max_calls: int, window_seconds: int) -> bool:
+    now = time.monotonic()
+    with _rate_lock:
+        q = _rate_buckets[key]
+        while q and q[0] < now - window_seconds:
+            q.popleft()
+        if len(q) >= max_calls:
+            return False
+        q.append(now)
+        return True
+
 
 def _compact_context(text: str, max_chars: int = 3000) -> str:
-    """Truncate a long text block to keep it within LLM context limits."""
     if len(text) <= max_chars:
         return text
     half = max_chars // 2
     omitted = len(text) - max_chars
     return text[:half] + f"\n…[{omitted} chars omitted]…\n" + text[-half:]
-app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=True, allow_methods=["GET","POST","DELETE","OPTIONS"], allow_headers=["Authorization","Content-Type"])
 
 _bearer = HTTPBearer()
 
@@ -37,32 +76,42 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(_
     except pyjwt.ExpiredSignatureError: raise HTTPException(401, "Token expired")
     except pyjwt.InvalidTokenError:    raise HTTPException(401, "Invalid token")
 
+# ── Global exception handler ───────────────────────────────────────────────────
+@app.exception_handler(Exception)
+async def _global_exc_handler(request: Request, exc: Exception):
+    logger.error("Unhandled exception %s %s — %r", request.method, request.url.path, exc, exc_info=True)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+# ── Request models with validation ────────────────────────────────────────────
 class GoogleAuthRequest(BaseModel):
-    credential: str
+    credential: str = Field(..., min_length=10, max_length=4096)
 
 class ResearchRequest(BaseModel):
-    query: str
-    audience: Optional[str] = "general"
-    thread_id: Optional[str] = None
+    query: str = Field(..., min_length=1, max_length=2000)
+    audience: Optional[str] = Field("general", max_length=50)
+    thread_id: Optional[str] = Field(None, max_length=128)
     constraints: Optional[dict] = None
-    doc_context: Optional[list] = []     # pre-loaded docs from file uploads / URL fetches
+    doc_context: Optional[list] = []
 
 class AddTopicRequest(BaseModel):
-    topic: str
+    topic: str = Field(..., min_length=1, max_length=200)
 
 class JobPostRequest(BaseModel):
-    job_description: str = ""
-    job_position:   str = ""
-    company_name:   str = ""
-    company_type:   str = "other"   # mnc | startup | organization | other
+    job_description: str = Field("", max_length=5000)
+    job_position:   str = Field("", max_length=300)
+    company_name:   str = Field("", max_length=200)
+    company_type:   str = Field("other", max_length=20)
     auto_add: bool = False
 
 class TagRequest(BaseModel):
-    tag: str
+    tag: str = Field(..., min_length=1, max_length=50)
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
 @app.post("/auth/google")
-async def auth_google(body: GoogleAuthRequest):
+async def auth_google(request: Request, body: GoogleAuthRequest):
+    ip = (request.client.host if request.client else "unknown")
+    if not _rate_check(f"auth:{ip}", 10, 60):
+        raise HTTPException(429, "Too many login attempts — wait a minute.")
     try: user_info = verify_google_token(body.credential)
     except ValueError as e: raise HTTPException(401, str(e))
     history_store.upsert_user(**user_info)
@@ -74,6 +123,8 @@ async def auth_me(user: dict = Depends(get_current_user)): return user
 # ── Research ───────────────────────────────────────────────────────────────────
 @app.post("/research")
 async def research(body: ResearchRequest, user: dict = Depends(get_current_user)):
+    if not _rate_check(f"research:{user['google_id']}", 30, 60):
+        raise HTTPException(429, "Rate limit exceeded — try again shortly.")
     async def gen():
         async for e in run_research(body.query, user["google_id"], body.thread_id, body.audience or "general", body.constraints, body.doc_context or []):
             yield e
@@ -262,11 +313,15 @@ async def remove_topic(topic: str, user: dict = Depends(get_current_user)):
 
 @app.post("/monitor/sync")
 async def sync_all(user: dict = Depends(get_current_user)):
+    if not _rate_check(f"sync:{user['google_id']}", 3, 60):
+        raise HTTPException(429, "Sync rate limit — wait before syncing again.")
     results = await asyncio.get_event_loop().run_in_executor(None, monitor.sync_user, user["google_id"])
     return {"synced": results}
 
 @app.post("/monitor/sync/{topic}")
 async def sync_one(topic: str, user: dict = Depends(get_current_user)):
+    if not _rate_check(f"sync:{user['google_id']}", 10, 60):
+        raise HTTPException(429, "Sync rate limit — wait before syncing again.")
     new_count = await asyncio.get_event_loop().run_in_executor(None, monitor.sync_topic, user["google_id"], topic)
     return {"topic": topic, "new_items": new_count}
 
@@ -308,7 +363,16 @@ async def analyze_job_post(body: JobPostRequest, user: dict = Depends(get_curren
 async def health(): return Response(status_code=200)
 
 @app.on_event("startup")
-async def startup(): monitor.start()
+async def startup():
+    from src.config import JWT_SECRET, GOOGLE_CLIENT_ID, GROQ_API_KEY
+    if JWT_SECRET == "change-me-in-production-use-a-long-random-string":
+        logger.warning("⚠  JWT_SECRET is using the insecure default. Set a strong secret in env.")
+    if not GOOGLE_CLIENT_ID:
+        logger.warning("⚠  GOOGLE_CLIENT_ID not set — Google OAuth will fail.")
+    logger.info("IntelLab API starting up (Groq: %s, Google OAuth: %s)",
+                "ok" if GROQ_API_KEY else "MISSING",
+                "ok" if GOOGLE_CLIENT_ID else "MISSING")
+    monitor.start()
 
 @app.on_event("shutdown")
 async def shutdown(): monitor.stop()

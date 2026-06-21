@@ -34,6 +34,8 @@ class KnowledgeMonitor:
         )
 
     def _init_db(self):
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA synchronous=NORMAL")
         self.conn.executescript("""
             CREATE TABLE IF NOT EXISTS user_topics (
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,

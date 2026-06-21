@@ -40,3 +40,5 @@ services:
         sync: false             # your Gmail address (e.g. you@gmail.com)
       - key: SMTP_PASS
         sync: false             # Gmail App Password — myaccount.google.com/apppasswords
+      - key: APP_URL
+        value: https://research-assistant-0g24.onrender.com

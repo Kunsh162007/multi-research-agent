@@ -40,3 +40,6 @@ SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
+
+# Public URL used in email links and share URLs
+APP_URL = os.getenv("APP_URL", "https://research-assistant-0g24.onrender.com")

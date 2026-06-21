@@ -9,7 +9,7 @@ Flow:
      (sessionStorage survives page refresh but is cleared on tab/window close)
 """
 
-import datetime
+from datetime import datetime, timezone, timedelta
 import logging
 
 import jwt
@@ -46,10 +46,11 @@ def verify_google_token(credential: str) -> dict:
 
 def create_jwt(user_info: dict) -> str:
     """Issue a JWT containing user identity, expiring after JWT_EXPIRE_HOURS."""
+    now = datetime.now(timezone.utc)
     payload = {
         **user_info,
-        "iat": datetime.datetime.utcnow(),
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=JWT_EXPIRE_HOURS),
+        "iat": now,
+        "exp": now + timedelta(hours=JWT_EXPIRE_HOURS),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 

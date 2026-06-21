@@ -1,7 +1,8 @@
-import { getToken } from './auth'
+import { getToken, clearSession } from './auth'
 import type { Conversation, KnowledgeItem, Topic, Stats, Digest, ResearchConstraints } from '../types'
 
 const BASE = ''
+const API_TIMEOUT_MS = 20_000  // 20s for regular REST calls
 
 function headers(contentType = true): HeadersInit {
   const token = getToken()
@@ -12,7 +13,20 @@ function headers(contentType = true): HeadersInit {
 }
 
 async function api<T>(method: string, path: string, body?: object): Promise<T> {
-  const res = await fetch(BASE + path, { method, headers: headers(), body: body ? JSON.stringify(body) : undefined })
+  const res = await fetch(BASE + path, {
+    method,
+    headers: headers(),
+    body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(API_TIMEOUT_MS),
+  })
+  if (res.status === 401) {
+    clearSession()
+    window.location.reload()
+    throw new Error('Session expired — please log in again.')
+  }
+  if (res.status === 429) {
+    throw new Error('Too many requests — please wait a moment.')
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
     throw new Error(err.detail ?? res.statusText)
@@ -109,14 +123,17 @@ export async function* streamResearch(
     method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify({ query, audience, thread_id: threadId, constraints, doc_context: docContext ?? [] }),
   })
-  if (!res.ok) throw new Error(`Research failed: ${res.statusText}`)
+  if (res.status === 401) { clearSession(); window.location.reload(); return }
+  if (res.status === 429) throw new Error('Rate limit reached — try again shortly.')
+  if (!res.ok) throw new Error(`Research failed (${res.status})`)
   yield* _readSSE(res)
 }
 
 export async function* streamResume(threadId: string): AsyncGenerator<object> {
   const token = getToken()
   const res = await fetch(`/resume/${threadId}`, { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {} })
-  if (!res.ok) throw new Error(`Resume failed: ${res.statusText}`)
+  if (res.status === 401) { clearSession(); window.location.reload(); return }
+  if (!res.ok) throw new Error(`Resume failed (${res.status})`)
   yield* _readSSE(res)
 }
 

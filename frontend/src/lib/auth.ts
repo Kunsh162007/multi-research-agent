@@ -32,3 +32,15 @@ export function clearSession(): void {
 export function isLoggedIn(): boolean {
   return Boolean(getToken())
 }
+
+/** Decode JWT exp claim client-side and check if it's expired (with 60s buffer). */
+export function isTokenExpired(): boolean {
+  const token = getToken()
+  if (!token) return true
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return Date.now() / 1000 >= (payload.exp as number) - 60
+  } catch {
+    return true
+  }
+}

@@ -1,11 +1,14 @@
 import { useState, useCallback } from 'react'
 import { authGoogle } from '../lib/api'
-import { saveSession, clearSession, getStoredUser, isLoggedIn } from '../lib/auth'
+import { saveSession, clearSession, getStoredUser, isLoggedIn, isTokenExpired } from '../lib/auth'
 import type { User } from '../types'
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(() => {
-    if (!isLoggedIn()) return null
+    if (!isLoggedIn() || isTokenExpired()) {
+      clearSession()
+      return null
+    }
     return getStoredUser() as User | null
   })
 
