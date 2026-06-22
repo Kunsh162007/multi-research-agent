@@ -25,9 +25,13 @@ MODEL_FAST          = os.getenv("MODEL_FAST",   FAST_MODEL)
 MODEL_HEAVY         = os.getenv("MODEL_HEAVY",  MODEL)
 MODEL_REASON        = os.getenv("MODEL_REASON", "openai/gpt-oss-120b")
 MODEL_VISION_GROQ   = os.getenv("MODEL_VISION_GROQ", "meta-llama/llama-4-scout-17b-16e-instruct")
-MODEL_VISION_GEMINI = os.getenv("MODEL_VISION_GEMINI", "gemini-2.0-flash")
-MODEL_LONG_GEMINI   = os.getenv("MODEL_LONG_GEMINI", "gemini-2.0-flash")
+MODEL_VISION_GEMINI = os.getenv("MODEL_VISION_GEMINI", "gemini-2.5-flash")
+MODEL_LONG_GEMINI   = os.getenv("MODEL_LONG_GEMINI", "gemini-2.5-flash")
 AUDIO_MODEL         = os.getenv("AUDIO_MODEL", "whisper-large-v3")
+
+# OpenRouter (optional) — a cross-provider model used as a 3rd voice in consensus.
+OPENROUTER_API_KEY  = os.getenv("OPENROUTER_API_KEY")
+MODEL_OPENROUTER    = os.getenv("MODEL_OPENROUTER", "qwen/qwen3-next-80b-a3b-instruct:free")
 
 _DATA_DIR = os.getenv("DATA_DIR", ".")
 CHECKPOINT_DB = os.getenv("CHECKPOINT_DB", os.path.join(_DATA_DIR, "checkpoints.db"))

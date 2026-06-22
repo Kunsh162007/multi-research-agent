@@ -35,6 +35,12 @@ export interface KnowledgeItem {
 
 export interface Topic { topic: string; created_at: string }
 
+export interface BriefingRef { title: string; url: string; type: string }
+export interface Briefing {
+  topic: string; briefing: string; refs: BriefingRef[]
+  item_count: number; updated_at: string
+}
+
 export interface TagItem { tag: string; count: number }
 
 export interface ShareInfo { token: string; views: number }

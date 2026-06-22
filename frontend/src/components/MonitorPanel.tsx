@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { listTopics, addTopic, removeTopic, syncAll, syncTopic, getKnowledge, analyzeJobPost } from '../lib/api'
-import type { Topic, KnowledgeItem } from '../types'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { listTopics, addTopic, removeTopic, syncAll, syncTopic, getKnowledge, analyzeJobPost, getBriefing, refreshBriefing } from '../lib/api'
+import type { Topic, KnowledgeItem, Briefing } from '../types'
 
 interface Props { onClose: () => void }
 type PanelTab = 'monitor' | 'job'
@@ -29,6 +31,8 @@ export default function MonitorPanel({ onClose }: Props) {
   const [topics, setTopics]         = useState<Topic[]>([])
   const [items, setItems]           = useState<KnowledgeItem[]>([])
   const [activeTopic, setActiveTopic] = useState<string | null>(null)
+  const [briefing, setBriefing]     = useState<Briefing | null>(null)
+  const [briefingLoading, setBriefingLoading] = useState(false)
   const [newTopic, setNewTopic]     = useState('')
   const [syncing, setSyncing]       = useState(false)
   const [syncingTopic, setSyncingTopic] = useState<string | null>(null)
@@ -67,17 +71,35 @@ export default function MonitorPanel({ onClose }: Props) {
     setItems((await getKnowledge()).items)
   }
 
+  async function loadBriefing(topic: string) {
+    setBriefingLoading(true)
+    try { setBriefing(await getBriefing(topic)) }
+    catch { setBriefing(null) }          // 404 = not synced yet
+    finally { setBriefingLoading(false) }
+  }
+
   async function handleSyncTopic(topic: string) {
     setSyncingTopic(topic)
     const result = await syncTopic(topic).finally(() => setSyncingTopic(null))
     setSyncResult(`"${topic}" — ${result.new_items} new items`)
     setItems((await getKnowledge(activeTopic ?? undefined)).items)
+    if (activeTopic === topic) loadBriefing(topic)   // sync refreshes the briefing server-side
+  }
+
+  async function handleRegenerateBriefing() {
+    if (!activeTopic) return
+    setBriefingLoading(true)
+    try { setBriefing(await refreshBriefing(activeTopic)) }
+    catch (e: any) { setSyncResult(e.message) }
+    finally { setBriefingLoading(false) }
   }
 
   async function handleTopicClick(topic: string) {
     const t = activeTopic === topic ? null : topic
     setActiveTopic(t)
     setItems((await getKnowledge(t ?? undefined)).items)
+    if (t) loadBriefing(t)
+    else setBriefing(null)
   }
 
   async function handleAnalyze() {
@@ -216,6 +238,38 @@ export default function MonitorPanel({ onClose }: Props) {
               </div>
             )}
           </div>
+
+          {/* Per-topic briefing */}
+          {activeTopic && (
+            <div>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                <span style={s.label}>Briefing — {activeTopic}</span>
+                <button onClick={handleRegenerateBriefing} disabled={briefingLoading} className="btn-ghost"
+                  style={{ fontSize:11, opacity: briefingLoading ? 0.4 : 1 }}>
+                  {briefingLoading ? '⟳ Briefing…' : '✦ Regenerate'}
+                </button>
+              </div>
+              {briefingLoading && !briefing ? (
+                <div style={{ display:'flex', gap:5, padding:'8px 0' }}>
+                  {[0,.2,.4].map((d,i) => <span key={i} className="typing-dot" style={{ width:5, height:5, background:'var(--orange-dim)', borderRadius:'50%', display:'inline-block', animationDelay:`${d}s` }} />)}
+                </div>
+              ) : briefing ? (
+                <div style={{ ...s.surface, padding:'14px 16px' }}>
+                  <div className="report-body">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{briefing.briefing}</ReactMarkdown>
+                  </div>
+                  <div style={{ marginTop:10, paddingTop:10, borderTop:'1px solid var(--border)',
+                    fontSize:10, color:'var(--text-4)' }}>
+                    {briefing.item_count} sources · updated {new Date(briefing.updated_at).toLocaleString()}
+                  </div>
+                </div>
+              ) : (
+                <p style={{ fontSize:12, color:'var(--text-4)', fontStyle:'italic' }}>
+                  No briefing yet — sync this topic (↻) to generate one.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Items */}
           <div>

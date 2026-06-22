@@ -137,6 +137,19 @@ def to_pdf(title: str, query: str, report: str, style: str = "report") -> Option
 def _to_pdf_fpdf(title: str, query: str, report: str) -> Optional[bytes]:
     try:
         from fpdf import FPDF
+        from fpdf.enums import XPos, YPos
+
+        # Core PDF fonts (Helvetica) are latin-1 only; replace any other glyphs
+        # (em-dashes, arrows, bullets, …) so real reports don't crash the encoder.
+        def _l1(s: str) -> str:
+            return s.encode("latin-1", "replace").decode("latin-1")
+
+        def _cell(pdf, h, txt):
+            # Always return the cursor to the left margin on the next line, otherwise
+            # fpdf2 leaves x at the right edge and the next multi_cell has ~0 width
+            # ("Not enough horizontal space to render a single character").
+            pdf.multi_cell(0, h, text=_l1(txt), align="L",
+                           new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)
@@ -144,13 +157,13 @@ def _to_pdf_fpdf(title: str, query: str, report: str) -> Optional[bytes]:
 
         # Title
         pdf.set_font("Helvetica", "B", 18)
-        pdf.multi_cell(0, 10, txt=title[:100], align="L")
+        _cell(pdf, 10, title[:100])
         pdf.ln(2)
 
         # Query
         pdf.set_font("Helvetica", "I", 11)
         pdf.set_text_color(100, 100, 100)
-        pdf.multi_cell(0, 7, txt=f"Query: {query}", align="L")
+        _cell(pdf, 7, f"Query: {query}")
         pdf.set_text_color(0, 0, 0)
         pdf.ln(5)
 
@@ -161,14 +174,12 @@ def _to_pdf_fpdf(title: str, query: str, report: str) -> Optional[bytes]:
 
         # Body — split on headings for basic formatting
         pdf.set_font("Helvetica", "", 11)
-        lines = _strip_markdown(report).split("\n")
-        for line in lines:
+        for line in _strip_markdown(report).split("\n"):
             stripped = line.strip()
             if not stripped:
                 pdf.ln(4)
                 continue
-            # Treat lines that were headings (now just bold text)
-            pdf.multi_cell(0, 6, txt=stripped, align="L")
+            _cell(pdf, 6, stripped)
 
         return bytes(pdf.output())
     except ImportError:

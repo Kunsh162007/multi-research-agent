@@ -224,22 +224,31 @@ def generate(state: ResearchState) -> dict:
 
 
 def _consensus_generate(prompt: str) -> str:
-    """Draft on two diverse models; a reason-tier judge merges the best of both."""
+    """Draft on diverse models (Groq heavy + reason, plus OpenRouter when configured);
+    a reason-tier judge merges them into one superior answer."""
     drafts = []
     for role in ("heavy", "reason"):
         try:
             drafts.append(get_model(role, temperature=0.3).invoke(prompt).content)
         except Exception as e:
             logger.warning(f"Consensus draft ({role}) failed: {e}")
+
+    # Cross-provider voice via OpenRouter (no-op when OPENROUTER_API_KEY unset)
+    from src.router import openrouter_complete
+    or_draft = openrouter_complete(prompt, temperature=0.3)
+    if or_draft:
+        drafts.append(or_draft)
+
     if not drafts:
         return ""
     if len(drafts) == 1:
         return drafts[0]
     try:
+        labelled = "\n\n".join(f"DRAFT {chr(65 + i)}:\n{d}" for i, d in enumerate(drafts))
         judge_prompt = (
-            "Two draft answers to the same task are below. Merge them into one superior answer: "
-            "keep every well-supported claim, drop anything unsupported, preserve inline [N] citations.\n\n"
-            f"DRAFT A:\n{drafts[0]}\n\nDRAFT B:\n{drafts[1]}"
+            f"{len(drafts)} draft answers to the same task are below. Merge them into one "
+            "superior answer: keep every well-supported claim, drop anything unsupported, "
+            "preserve inline [N] citations.\n\n" + labelled
         )
         return get_model("reason", temperature=0.2).invoke(judge_prompt).content
     except Exception as e:

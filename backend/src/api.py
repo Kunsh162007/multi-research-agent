@@ -349,6 +349,29 @@ async def get_knowledge(topic: Optional[str] = None, limit: int = 50, user: dict
     items = monitor.get_knowledge_items(user["google_id"], topic=topic, limit=limit)
     return {"items": items, "total": len(items)}
 
+@app.get("/monitor/briefings")
+async def list_briefings(user: dict = Depends(get_current_user)):
+    """All per-topic technology briefings (each topic is its own thread)."""
+    return {"briefings": monitor.get_all_briefings(user["google_id"])}
+
+@app.get("/monitor/briefing/{topic}")
+async def get_briefing(topic: str, user: dict = Depends(get_current_user)):
+    briefing = monitor.get_briefing(user["google_id"], topic)
+    if not briefing:
+        raise HTTPException(404, "No briefing yet — sync this topic first.")
+    return briefing
+
+@app.post("/monitor/briefing/{topic}")
+async def refresh_briefing(topic: str, user: dict = Depends(get_current_user)):
+    if not _rate_check(f"brief:{user['google_id']}", 10, 60):
+        raise HTTPException(429, "Briefing rate limit — wait before regenerating.")
+    briefing = await asyncio.get_event_loop().run_in_executor(
+        None, monitor.generate_briefing, user["google_id"], topic
+    )
+    if not briefing:
+        raise HTTPException(422, "No items to brief on yet — sync this topic first.")
+    return briefing
+
 @app.get("/monitor/digest")
 async def get_digest(user: dict = Depends(get_current_user)):
     return monitor.get_digest(user["google_id"])

@@ -23,7 +23,13 @@ services:
       - key: GEMINI_API_KEY
         sync: false          # optional — free at aistudio.google.com/apikey (vision + long-context)
       - key: SEARXNG_URL
-        sync: false          # optional — self-hosted SearXNG base URL for web-wide search
+        sync: false          # optional — PUBLIC SearXNG base URL (localhost won't work on Render)
+      - key: OPENROUTER_API_KEY
+        sync: false          # optional — cross-provider voice for consensus (openrouter.ai/keys)
+      - key: USE_CONSENSUS
+        value: "false"       # set true to draft on multiple models + judge-merge (slower, +accuracy)
+      - key: USE_DEEP_CRAWL
+        value: "false"       # set true to follow links from search hits (needs SEARXNG_URL)
       - key: MODEL
         value: llama-3.3-70b-versatile
       - key: CORS_ORIGINS

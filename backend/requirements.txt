@@ -26,6 +26,7 @@ python-docx>=1.1.0        # DOCX parsing + DOCX export
 # Multi-model + multimodal + deep search + rich export (all optional/guarded)
 langchain-google-genai>=2.0.0  # Gemini vision + long-context (lazy-imported)
 groq>=0.11.0              # Groq SDK for Whisper audio transcription
+openai>=1.40.0           # OpenAI-compatible client for OpenRouter consensus voice
 trafilatura>=1.8.0        # clean main-text extraction for deep_crawl / fetch_url
 weasyprint>=62.0          # high-fidelity Markdown→HTML→PDF (falls back to fpdf2)
 pandas>=2.0.0             # CSV/XLSX data-file summaries
