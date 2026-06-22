@@ -66,6 +66,17 @@ class KnowledgeMonitor:
                 ran_at    TEXT NOT NULL,
                 new_items INTEGER NOT NULL DEFAULT 0
             );
+
+            -- One synthesized briefing per topic (its own "thread"), refreshed on sync.
+            CREATE TABLE IF NOT EXISTS topic_briefings (
+                user_id    TEXT NOT NULL,
+                topic      TEXT NOT NULL,
+                briefing   TEXT NOT NULL,
+                refs       TEXT NOT NULL,
+                item_count INTEGER NOT NULL DEFAULT 0,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (user_id, topic)
+            );
         """)
         self.conn.commit()
 
@@ -159,6 +170,13 @@ class KnowledgeMonitor:
         )
         self.conn.commit()
 
+        # Refresh the topic's briefing when content changed (or none exists yet).
+        if new_count > 0 or self.get_briefing(user_id, topic) is None:
+            try:
+                self.generate_briefing(user_id, topic)
+            except Exception as e:
+                logger.error(f"briefing refresh failed for topic={topic}: {e}")
+
         logger.info(f"Monitor sync: user={user_id} topic={topic!r} new={new_count}")
         return new_count
 
@@ -197,6 +215,86 @@ class KnowledgeMonitor:
         )
         row = cursor.fetchone()
         return {"ran_at": row[0], "new_items": row[1]} if row else None
+
+    # ─── Per-topic technology briefing ────────────────────────────────────────
+
+    _BRIEFING_PROMPT = """You are a technology intelligence analyst. Using ONLY the items below, write a briefing on the LATEST developments and emerging technologies in "{topic}".
+
+Items (cite by number with its link):
+{items}
+
+Write in Markdown, concise and specific:
+
+## What's New in {topic}
+2-4 sentences on the most important recent developments.
+
+## Key Developments
+A bullet for each notable new technology / paper / tool. Each bullet MUST include an inline markdown link to its source, e.g. "- **[Title](url)** — one line on why it matters."
+
+## Why It Matters
+2-3 sentences synthesizing the direction the field is moving.
+
+Rules: reference only the items provided, always hyperlink sources inline, no fabricated links."""
+
+    def generate_briefing(self, user_id: str, topic: str, max_items: int = 15) -> dict | None:
+        """Synthesize a per-topic briefing from recent knowledge items and persist it."""
+        import json as _json
+        items = self.get_knowledge_items(user_id, topic=topic, limit=max_items)
+        if not items:
+            return None
+
+        items_text = "\n".join(
+            f"[{i + 1}] {it['title']} ({it['item_type']}) — {it['url']}\n{(it['content'] or '')[:300]}"
+            for i, it in enumerate(items)
+        )
+        try:
+            from src.llm import get_llm
+            response = get_llm(temperature=0.3).invoke(
+                self._BRIEFING_PROMPT.format(topic=topic, items=items_text)
+            )
+            briefing = response.content.strip()
+        except Exception as e:
+            logger.error(f"generate_briefing failed for topic={topic}: {e}")
+            return None
+
+        refs = [
+            {"title": it["title"], "url": it["url"], "type": it["item_type"]}
+            for it in items if it.get("url")
+        ]
+        now = self._now()
+        self.conn.execute("""
+            INSERT INTO topic_briefings (user_id, topic, briefing, refs, item_count, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, topic) DO UPDATE SET
+                briefing=excluded.briefing, refs=excluded.refs,
+                item_count=excluded.item_count, updated_at=excluded.updated_at
+        """, (user_id, topic, briefing, _json.dumps(refs), len(items), now))
+        self.conn.commit()
+        return {"topic": topic, "briefing": briefing, "refs": refs,
+                "item_count": len(items), "updated_at": now}
+
+    def get_briefing(self, user_id: str, topic: str) -> dict | None:
+        import json as _json
+        row = self.conn.execute(
+            "SELECT briefing, refs, item_count, updated_at FROM topic_briefings WHERE user_id=? AND topic=?",
+            (user_id, topic),
+        ).fetchone()
+        if not row:
+            return None
+        return {"topic": topic, "briefing": row[0], "refs": _json.loads(row[1]),
+                "item_count": row[2], "updated_at": row[3]}
+
+    def get_all_briefings(self, user_id: str) -> list[dict]:
+        import json as _json
+        rows = self.conn.execute(
+            "SELECT topic, briefing, refs, item_count, updated_at FROM topic_briefings WHERE user_id=? ORDER BY updated_at DESC",
+            (user_id,),
+        ).fetchall()
+        return [
+            {"topic": r[0], "briefing": r[1], "refs": _json.loads(r[2]),
+             "item_count": r[3], "updated_at": r[4]}
+            for r in rows
+        ]
 
     # ─── Digest & visit tracking ──────────────────────────────────────────────
 

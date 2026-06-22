@@ -1,5 +1,5 @@
 import { getToken, clearSession } from './auth'
-import type { Conversation, KnowledgeItem, Topic, Stats, Digest, ResearchConstraints } from '../types'
+import type { Conversation, KnowledgeItem, Topic, Stats, Digest, Briefing, ResearchConstraints } from '../types'
 
 const BASE = ''
 const API_TIMEOUT_MS = 20_000  // 20s for regular REST calls
@@ -83,6 +83,9 @@ export const getKnowledge = (topic?: string, limit = 50): Promise<{ items: Knowl
   const p = new URLSearchParams({ limit: String(limit) }); if (topic) p.set('topic', topic)
   return api('GET', `/monitor/knowledge?${p}`)
 }
+export const getBriefing = (topic: string) => api<Briefing>('GET', `/monitor/briefing/${encodeURIComponent(topic)}`)
+export const getBriefings = () => api<{ briefings: Briefing[] }>('GET', '/monitor/briefings')
+export const refreshBriefing = (topic: string) => api<Briefing>('POST', `/monitor/briefing/${encodeURIComponent(topic)}`)
 export const getDigest = () => api<Digest>('GET', '/monitor/digest')
 export const markVisited = () => api('POST', '/monitor/visit')
 export const analyzeJobPost = (
