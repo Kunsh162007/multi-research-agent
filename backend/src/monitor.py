@@ -278,15 +278,17 @@ Rules: reference only the items provided, always hyperlink sources inline, no fa
             f"[{i + 1}] {it['title']} ({it['item_type']}) — {it['url']}\n{(it['content'] or '')[:300]}"
             for i, it in enumerate(items)
         )
-        try:
-            from src.llm import get_llm
-            response = get_llm(temperature=0.3).invoke(
-                self._BRIEFING_PROMPT.format(topic=topic, items=items_text)
-            )
-            briefing = response.content.strip()
-        except Exception as e:
-            logger.error(f"generate_briefing failed for topic={topic}: {e}")
-            return None
+        # Try the heavy model, fall back to the lighter model / OpenRouter on a rate
+        # limit; if every LLM is unavailable, still ship a deterministic briefing so
+        # the user always sees something.
+        from src.router import resilient_complete
+        briefing = resilient_complete(
+            self._BRIEFING_PROMPT.format(topic=topic, items=items_text),
+            temperature=0.3, max_tokens=2048,
+        )
+        if not briefing:
+            logger.warning(f"generate_briefing: all models unavailable for topic={topic}; using fallback")
+            briefing = self._fallback_briefing(topic, items)
 
         refs = [
             {"title": it["title"], "url": it["url"], "type": it["item_type"]}
@@ -303,6 +305,24 @@ Rules: reference only the items provided, always hyperlink sources inline, no fa
         self.conn.commit()
         return {"topic": topic, "briefing": briefing, "refs": refs,
                 "item_count": len(items), "updated_at": now}
+
+    def _fallback_briefing(self, topic: str, items: list[dict]) -> str:
+        """Deterministic briefing from the items alone — used when no LLM is reachable
+        (e.g. all providers rate-limited) so a briefing still renders."""
+        lines = [
+            f"## What's New in {topic}",
+            "",
+            "_Automated synthesis is temporarily unavailable (model rate limit) — "
+            "here are the latest tracked items. Hit ✦ Regenerate later for the full briefing._",
+            "",
+            "## Key Developments",
+        ]
+        for it in items:
+            title = (it.get("title") or "Untitled").strip()
+            url = it.get("url", "")
+            kind = it.get("item_type", "source")
+            lines.append(f"- **[{title}]({url})** — {kind}" if url else f"- **{title}** — {kind}")
+        return "\n".join(lines)
 
     def get_briefing(self, user_id: str, topic: str) -> dict | None:
         import json as _json
@@ -408,15 +428,12 @@ Cite sources inline as markdown links. If the sources don't cover it, say so pla
             f"[{i + 1}] {it['title']} ({it['item_type']}) — {it['url']}\n{(it['content'] or '')[:300]}"
             for i, it in enumerate(items)
         )
-        try:
-            from src.llm import get_llm
-            response = get_llm(temperature=0.2).invoke(
-                self._ASK_PROMPT.format(topic=topic, items=items_text, question=question)
-            )
-            return {"answer": response.content.strip()}
-        except Exception as e:
-            logger.error(f"ask_briefing failed for topic={topic}: {e}")
-            return {"answer": "Sorry — couldn't answer that right now. Please try again."}
+        from src.router import resilient_complete
+        answer = resilient_complete(
+            self._ASK_PROMPT.format(topic=topic, items=items_text, question=question),
+            temperature=0.2, max_tokens=1536,
+        )
+        return {"answer": answer or "Sorry — all models are rate-limited right now. Please try again shortly."}
 
     # ─── Job post → topics ────────────────────────────────────────────────────
 

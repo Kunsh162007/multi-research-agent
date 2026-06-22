@@ -104,6 +104,23 @@ def get_model(role: str = "heavy", *, temperature: float = 0.2,
     return _make_groq()
 
 
+def resilient_complete(prompt: str, *, temperature: float = 0.3, max_tokens: int = 4096,
+                       roles: tuple[str, ...] = ("heavy", "fast")) -> str:
+    """Try each Groq role in order, then OpenRouter, returning the first non-empty
+    completion. Survives a per-model rate limit (e.g. Groq daily-token cap) by moving
+    to the next model, which has its own separate quota. Returns '' only if all fail."""
+    for role in roles:
+        try:
+            text = (get_model(role, temperature=temperature, max_tokens=max_tokens)
+                    .invoke(prompt).content or "").strip()
+            if text:
+                return text
+        except Exception as e:
+            logger.warning("resilient_complete role=%s failed: %s", role, e)
+    # Last resort: cross-provider via OpenRouter (no-op when OPENROUTER_API_KEY unset).
+    return openrouter_complete(prompt, temperature=temperature, max_tokens=max_tokens)
+
+
 def openrouter_complete(prompt: str, temperature: float = 0.3, max_tokens: int = 4096) -> str:
     """One completion via OpenRouter (OpenAI-compatible). Returns '' with no key/on failure."""
     from src.config import OPENROUTER_API_KEY, MODEL_OPENROUTER
