@@ -173,6 +173,11 @@ def retrieve(state: ResearchState) -> dict:
         reflection_hint=reflection_hint.strip(),
     )
 
+    # Web-wide deep crawl: follow links from search hits across the whole web.
+    from src.config import USE_DEEP_CRAWL
+    if constraints.get("use_deep_crawl", USE_DEEP_CRAWL):
+        calls.append({"tool": "deep_crawl", "query": clarified})
+
     # Fallback: also ask LLM which tool calls to make (for complex queries)
     if state.get("iteration", 0) > 0:
         try:

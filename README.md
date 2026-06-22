@@ -143,6 +143,22 @@ GET  /history/search?q=safety   — full-text search
 DELETE /history/<thread_id>     — delete a conversation
 ```
 
+### Web-wide Deep Search (SearXNG)
+For research that "looks at every site", run the bundled self-hosted **SearXNG** meta-search
+(aggregates Google, Bing, DuckDuckGo, Brave, arXiv, GitHub, … — no API key):
+
+```bash
+docker compose -f docker-compose.searxng.yml up -d
+# then in backend/.env:
+#   SEARXNG_URL=http://localhost:8080
+#   USE_SEARXNG=true
+```
+
+When `SEARXNG_URL` is set it becomes the default engine behind `web_search` (Tavily → stub
+remain fallbacks). Enable **deep crawl** (`USE_DEEP_CRAWL=true`, or the `/deep` command / "Deep
+Search" toggle) to follow links from search hits via a BFS crawler with clean text extraction
+(`trafilatura`). `POST /deep-search {query}` exposes it directly.
+
 ### Knowledge Monitor
 Track AI or research topics. The monitor fetches new arXiv papers and web articles:
 - **Scheduled**: runs every `MONITOR_INTERVAL_HOURS` (default 24h) automatically

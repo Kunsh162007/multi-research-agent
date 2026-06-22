@@ -61,6 +61,8 @@ export interface ResearchConstraints {
   use_storm?: boolean
   use_adaptive?: boolean
   use_reflexion?: boolean
+  use_deep_crawl?: boolean
+  use_consensus?: boolean
   max_iterations?: number
   quality_target?: number
 }

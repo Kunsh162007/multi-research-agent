@@ -142,6 +142,19 @@ async def fetch_url_endpoint(request: Request, user: dict = Depends(get_current_
         raise HTTPException(422, "Could not extract content from that URL")
     return {"url": url, "chunks": len(docs), "docs": docs}
 
+@app.post("/deep-search")
+async def deep_search_endpoint(request: Request, user: dict = Depends(get_current_user)):
+    """Web-wide deep search: SearXNG across every engine, then follow links (BFS crawl)."""
+    if not _rate_check(f"deepsearch:{user['google_id']}", 10, 60):
+        raise HTTPException(429, "Deep-search rate limit — wait a moment.")
+    data = await request.json()
+    query = (data.get("query") or "").strip()
+    if not query:
+        raise HTTPException(400, "query is required")
+    from src.tools import deep_crawl
+    docs = await asyncio.get_event_loop().run_in_executor(None, deep_crawl, query)
+    return {"query": query, "pages": len(docs), "docs": docs}
+
 @app.post("/resume/{thread_id}")
 async def resume(thread_id: str, user: dict = Depends(get_current_user)):
     async def gen():
