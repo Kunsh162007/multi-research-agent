@@ -6,7 +6,10 @@ let _mermaid: typeof import('mermaid').default | null = null
 async function getMermaid() {
   if (!_mermaid) {
     _mermaid = (await import('mermaid')).default
-    _mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'strict' })
+    _mermaid.initialize({
+      startOnLoad: false, theme: 'dark', securityLevel: 'strict',
+      suppressErrorRendering: true,   // never inject mermaid's "Syntax error" graphic into the DOM
+    })
   }
   return _mermaid
 }
