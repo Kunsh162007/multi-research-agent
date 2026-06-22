@@ -10,8 +10,10 @@ import pytest
 
 # ─── Router roles ────────────────────────────────────────────────────────────────
 
-def test_router_roles_resolve_to_groq_without_gemini():
+def test_router_roles_resolve_to_groq_without_gemini(monkeypatch):
     from src import router
+    # Force "no Gemini key" regardless of the ambient .env.
+    monkeypatch.setattr(router, "GEMINI_API_KEY", None)
     # Without GEMINI_API_KEY, every role falls back to a Groq chat model.
     for role in ("fast", "heavy", "reason", "vision", "long"):
         m = router.get_model(role)
@@ -53,11 +55,13 @@ def test_verify_flags_dangling_citations():
 
 # ─── Deep search / SearXNG ───────────────────────────────────────────────────────
 
-def test_searxng_returns_empty_without_url():
-    from src.tools import searxng_search, TOOL_REGISTRY
-    assert searxng_search("anything") == []
-    assert "searxng_search" in TOOL_REGISTRY
-    assert "deep_crawl" in TOOL_REGISTRY
+def test_searxng_returns_empty_without_url(monkeypatch):
+    from src import tools
+    # Force "no SEARXNG_URL" regardless of the ambient .env.
+    monkeypatch.setattr(tools, "SEARXNG_URL", "")
+    assert tools.searxng_search("anything") == []
+    assert "searxng_search" in tools.TOOL_REGISTRY
+    assert "deep_crawl" in tools.TOOL_REGISTRY
 
 
 # ─── Multimodal file processor (data files, no network) ──────────────────────────

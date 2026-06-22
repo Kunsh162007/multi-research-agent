@@ -65,6 +65,25 @@ def _gemini(model: str, temperature: float, max_tokens: int):
     )
 
 
+class _FallbackModel:
+    """Wraps a primary model so a *runtime* failure (e.g. Gemini 429 when the free
+    quota is exhausted) transparently falls back to a Groq equivalent — the router's
+    construction-time try/except can't catch errors raised during .invoke()."""
+    def __init__(self, primary, make_fallback):
+        self._primary = primary
+        self._make_fallback = make_fallback
+
+    def invoke(self, *args, **kwargs):
+        try:
+            return self._primary.invoke(*args, **kwargs)
+        except Exception as e:
+            logger.warning("Primary model failed at invoke (%s); using Groq fallback", e)
+            return self._make_fallback().invoke(*args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._primary, name)
+
+
 def get_model(role: str = "heavy", *, temperature: float = 0.2,
               streaming: bool = False, max_tokens: int | None = None):
     """Return a chat model for the given semantic role (see module docstring)."""
@@ -72,13 +91,36 @@ def get_model(role: str = "heavy", *, temperature: float = 0.2,
         role = "heavy"
     mt = max_tokens or _DEFAULT_MAX_TOKENS.get(role, 4096)
 
+    def _make_groq():
+        return _groq(_GROQ_ROLE_MODELS[role], temperature, streaming, mt)
+
     if role in _GEMINI_ROLES and GEMINI_API_KEY:
         try:
-            return _gemini(_GEMINI_ROLE_MODELS[role], temperature, mt)
+            gemini = _gemini(_GEMINI_ROLE_MODELS[role], temperature, mt)
+            return _FallbackModel(gemini, _make_groq)
         except Exception as e:  # missing dep / bad key → fall back to Groq
             logger.warning("Gemini unavailable for role=%s (%s); using Groq fallback", role, e)
 
-    return _groq(_GROQ_ROLE_MODELS[role], temperature, streaming, mt)
+    return _make_groq()
+
+
+def openrouter_complete(prompt: str, temperature: float = 0.3, max_tokens: int = 4096) -> str:
+    """One completion via OpenRouter (OpenAI-compatible). Returns '' with no key/on failure."""
+    from src.config import OPENROUTER_API_KEY, MODEL_OPENROUTER
+    if not OPENROUTER_API_KEY:
+        return ""
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1")
+        resp = client.chat.completions.create(
+            model=MODEL_OPENROUTER,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=temperature, max_tokens=max_tokens,
+        )
+        return (resp.choices[0].message.content or "").strip()
+    except Exception as e:
+        logger.warning("OpenRouter completion failed: %s", e)
+        return ""
 
 
 # ─── Cascade / escalation ────────────────────────────────────────────────────────
