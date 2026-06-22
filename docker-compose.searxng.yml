@@ -1,0 +1,27 @@
+# Self-hosted SearXNG meta-search for web-wide deep search (no API key).
+#
+#   docker compose -f docker-compose.searxng.yml up -d
+#
+# Then set in backend/.env:
+#   SEARXNG_URL=http://localhost:8080
+#   USE_SEARXNG=true
+#
+# SearXNG aggregates results across dozens of engines (Google, Bing, DuckDuckGo,
+# Brave, arXiv, GitHub, …) — effectively "every site" — and returns JSON.
+services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8080/
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID

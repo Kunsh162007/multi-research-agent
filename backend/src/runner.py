@@ -148,6 +148,24 @@ async def run_research(
         if d.get("text")
     ]
 
+    # Build prior-research context from past sessions most similar to this query.
+    # (Must be computed BEFORE initial_state, which references it.)
+    prior_research = ""
+    try:
+        past = history_store.search_bm25(user_id, query)[:2]
+        snippets = []
+        for s in past:
+            msgs = history_store.get_messages(s["thread_id"], user_id)
+            summary = next(
+                (m["content"][:400] for m in reversed(msgs) if m["role"] == "assistant"),
+                "",
+            )
+            if summary:
+                snippets.append(f"[{s['title']}]: {summary}")
+        prior_research = "\n\n".join(snippets)
+    except Exception:
+        pass
+
     initial_state: ResearchState = {
         "thread_id": thread_id,
         "query": query,
@@ -178,23 +196,6 @@ async def run_research(
 
     ckpt_thread_id = f"{user_id}:{thread_id}"
     config = {"configurable": {"thread_id": ckpt_thread_id}}
-
-    # Build prior-research context from past sessions most similar to this query
-    prior_research = ""
-    try:
-        past = history_store.search_bm25(user_id, query)[:2]
-        snippets = []
-        for s in past:
-            msgs = history_store.get_messages(s["thread_id"], user_id)
-            summary = next(
-                (m["content"][:400] for m in reversed(msgs) if m["role"] == "assistant"),
-                "",
-            )
-            if summary:
-                snippets.append(f"[{s['title']}]: {summary}")
-        prior_research = "\n\n".join(snippets)
-    except Exception:
-        pass
 
     history_store.create_conversation(thread_id, user_id, query)
     history_store.add_message(thread_id, user_id, "user", query)

@@ -1,0 +1,19 @@
+# Minimal SearXNG config enabling the JSON API used by src/tools.py:searxng_search.
+# Generate a unique secret_key before any public deployment.
+use_default_settings: true
+
+server:
+  secret_key: "change-me-to-a-long-random-string"
+  limiter: false
+  image_proxy: true
+
+search:
+  # JSON must be enabled for programmatic access from the backend.
+  formats:
+    - html
+    - json
+  safe_search: 0
+  autocomplete: ""
+
+ui:
+  static_use_hash: true
