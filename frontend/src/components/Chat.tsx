@@ -12,6 +12,7 @@ import type { ChatMessage, FinalEvent, ResearchConstraints, ResearchMode } from 
 interface Props {
   onConversationCreated: () => void
   loadThreadId?: string
+  initialQuery?: string
 }
 
 interface ModeConfig {
@@ -115,7 +116,7 @@ const MODE_SUGGESTIONS: Record<ResearchMode, string[]> = {
   ],
 }
 
-export default function Chat({ onConversationCreated, loadThreadId }: Props) {
+export default function Chat({ onConversationCreated, loadThreadId, initialQuery }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [mode, setMode] = useState<ResearchMode>('research')
@@ -158,6 +159,15 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
       })
       .catch(console.error)
   }, [loadThreadId])
+
+  // Auto-run a query handed in from elsewhere (e.g. "Deep dive in chat" from the monitor).
+  const ranInitial = useRef(false)
+  useEffect(() => {
+    if (initialQuery && !ranInitial.current) {
+      ranInitial.current = true
+      handleSubmit(initialQuery)
+    }
+  }, [initialQuery])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })

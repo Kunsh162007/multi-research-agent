@@ -87,6 +87,9 @@ export const getBriefing = (topic: string) => api<Briefing>('GET', `/monitor/bri
 export const getBriefings = () => api<{ briefings: Briefing[] }>('GET', '/monitor/briefings')
 export const refreshBriefing = (topic: string) => api<Briefing>('POST', `/monitor/briefing/${encodeURIComponent(topic)}`)
 export const getDigest = () => api<Digest>('GET', '/monitor/digest')
+export const getNewCounts = () => api<{ counts: Record<string, number> }>('GET', '/monitor/new-counts')
+export const askBriefing = (topic: string, question: string) =>
+  api<{ answer: string }>('POST', `/monitor/briefing/${encodeURIComponent(topic)}/ask`, { question })
 export const markVisited = () => api('POST', '/monitor/visit')
 export const analyzeJobPost = (
   payload: { job_description?: string; job_position?: string; company_name?: string; company_type?: string },

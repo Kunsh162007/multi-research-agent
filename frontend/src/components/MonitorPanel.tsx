@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { listTopics, addTopic, removeTopic, syncAll, syncTopic, getKnowledge, analyzeJobPost, getBriefing, refreshBriefing } from '../lib/api'
-import type { Topic, KnowledgeItem, Briefing } from '../types'
+import { listTopics, addTopic, removeTopic, syncAll, syncTopic, analyzeJobPost, getBriefing, refreshBriefing, getNewCounts, askBriefing, markVisited } from '../lib/api'
+import type { Topic, Briefing } from '../types'
 
-interface Props { onClose: () => void }
+interface Props { onClose: () => void; onDeepDive: (query: string) => void }
 type PanelTab = 'monitor' | 'job'
 type InputMode = 'position' | 'description'
 type CompanyType = 'mnc' | 'startup' | 'organization' | 'other'
@@ -16,6 +16,15 @@ const COMPANY_TYPES: { id: CompanyType; label: string; desc: string }[] = [
   { id: 'other',        label: 'Other',         desc: 'Other type of company' },
 ]
 
+function timeAgo(iso: string): { label: string; stale: boolean } {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000))
+  const stale = mins > 7 * 24 * 60          // older than 7 days → nudge a refresh
+  if (mins < 60)  return { label: `${mins}m ago`, stale }
+  const hrs = Math.round(mins / 60)
+  if (hrs < 24)   return { label: `${hrs}h ago`, stale }
+  return { label: `${Math.round(hrs / 24)}d ago`, stale }
+}
+
 const s = {
   surface: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' } as React.CSSProperties,
   input: {
@@ -26,13 +35,17 @@ const s = {
   label: { fontSize: 10, fontWeight: 600, color: 'var(--text-4)', letterSpacing: '0.08em', textTransform: 'uppercase' as const, marginBottom: 6, display: 'block' },
 }
 
-export default function MonitorPanel({ onClose }: Props) {
+export default function MonitorPanel({ onClose, onDeepDive }: Props) {
   const [tab, setTab]               = useState<PanelTab>('monitor')
   const [topics, setTopics]         = useState<Topic[]>([])
-  const [items, setItems]           = useState<KnowledgeItem[]>([])
+  const [newCounts, setNewCounts]   = useState<Record<string, number>>({})
   const [activeTopic, setActiveTopic] = useState<string | null>(null)
   const [briefing, setBriefing]     = useState<Briefing | null>(null)
   const [briefingLoading, setBriefingLoading] = useState(false)
+  const [showSources, setShowSources] = useState(false)
+  const [askInput, setAskInput]     = useState('')
+  const [askAnswer, setAskAnswer]   = useState<string | null>(null)
+  const [asking, setAsking]         = useState(false)
   const [newTopic, setNewTopic]     = useState('')
   const [syncing, setSyncing]       = useState(false)
   const [syncingTopic, setSyncingTopic] = useState<string | null>(null)
@@ -51,9 +64,16 @@ export default function MonitorPanel({ onClose }: Props) {
   const [adding, setAdding]         = useState(false)
 
   useEffect(() => {
-    Promise.all([listTopics(), getKnowledge()])
-      .then(([t, k]) => { setTopics(t); setItems(k.items) })
-      .finally(() => setLoading(false))
+    Promise.all([listTopics(), getNewCounts()])
+      .then(([t, nc]) => {
+        setTopics(t)
+        setNewCounts(nc.counts)
+        if (t.length > 0) {                  // auto-open the most recent topic's briefing
+          setActiveTopic(t[0].topic)
+          loadBriefing(t[0].topic)
+        }
+      })
+      .finally(() => { setLoading(false); markVisited().catch(() => {}) })
   }, [])
 
   async function handleAddTopic() {
@@ -68,11 +88,12 @@ export default function MonitorPanel({ onClose }: Props) {
     const result = await syncAll().finally(() => setSyncing(false))
     const total = Object.values(result.synced as Record<string, number>).reduce((a, b) => a + b, 0)
     setSyncResult(`${topics.length} topics synced — ${total} new items`)
-    setItems((await getKnowledge()).items)
+    if (activeTopic) loadBriefing(activeTopic)
   }
 
   async function loadBriefing(topic: string) {
     setBriefingLoading(true)
+    setShowSources(false); setAskAnswer(null); setAskInput('')
     try { setBriefing(await getBriefing(topic)) }
     catch { setBriefing(null) }          // 404 = not synced yet
     finally { setBriefingLoading(false) }
@@ -82,7 +103,6 @@ export default function MonitorPanel({ onClose }: Props) {
     setSyncingTopic(topic)
     const result = await syncTopic(topic).finally(() => setSyncingTopic(null))
     setSyncResult(`"${topic}" — ${result.new_items} new items`)
-    setItems((await getKnowledge(activeTopic ?? undefined)).items)
     if (activeTopic === topic) loadBriefing(topic)   // sync refreshes the briefing server-side
   }
 
@@ -97,9 +117,16 @@ export default function MonitorPanel({ onClose }: Props) {
   async function handleTopicClick(topic: string) {
     const t = activeTopic === topic ? null : topic
     setActiveTopic(t)
-    setItems((await getKnowledge(t ?? undefined)).items)
     if (t) loadBriefing(t)
-    else setBriefing(null)
+    else { setBriefing(null); setAskAnswer(null) }
+  }
+
+  async function handleAsk() {
+    if (!activeTopic || !askInput.trim()) return
+    setAsking(true); setAskAnswer(null)
+    try { setAskAnswer((await askBriefing(activeTopic, askInput.trim())).answer) }
+    catch (e: any) { setAskAnswer(`Couldn't answer: ${e.message}`) }
+    finally { setAsking(false) }
   }
 
   async function handleAnalyze() {
@@ -226,6 +253,14 @@ export default function MonitorPanel({ onClose }: Props) {
                         background: active ? 'var(--orange)' : 'var(--text-5)' }} />
                       <span style={{ flex:1, fontSize:13, color: active ? 'var(--text)' : 'var(--text-3)',
                         overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.topic}</span>
+                      {newCounts[t.topic] > 0 && (
+                        <span title={`${newCounts[t.topic]} new since your last visit`} style={{
+                          fontSize:9, fontWeight:700, letterSpacing:'0.04em', flexShrink:0,
+                          color:'var(--orange-light)', background:'var(--orange-tint)',
+                          border:'1px solid rgba(249,115,22,0.3)', borderRadius:10, padding:'1px 6px' }}>
+                          {newCounts[t.topic]} NEW
+                        </span>
+                      )}
                       <button onClick={e => { e.stopPropagation(); handleSyncTopic(t.topic) }}
                         disabled={syncingTopic === t.topic} className="btn-ghost" style={{ fontSize:14, padding:'0 3px' }}>
                         {syncingTopic === t.topic ? '…' : '↻'}
@@ -239,7 +274,7 @@ export default function MonitorPanel({ onClose }: Props) {
             )}
           </div>
 
-          {/* Per-topic briefing */}
+          {/* Per-topic briefing — auto-shown for the active topic */}
           {activeTopic && (
             <div>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
@@ -249,63 +284,80 @@ export default function MonitorPanel({ onClose }: Props) {
                   {briefingLoading ? '⟳ Briefing…' : '✦ Regenerate'}
                 </button>
               </div>
+
               {briefingLoading && !briefing ? (
                 <div style={{ display:'flex', gap:5, padding:'8px 0' }}>
                   {[0,.2,.4].map((d,i) => <span key={i} className="typing-dot" style={{ width:5, height:5, background:'var(--orange-dim)', borderRadius:'50%', display:'inline-block', animationDelay:`${d}s` }} />)}
                 </div>
-              ) : briefing ? (
+              ) : briefing ? (<>
                 <div style={{ ...s.surface, padding:'14px 16px' }}>
                   <div className="report-body">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{briefing.briefing}</ReactMarkdown>
                   </div>
+
+                  {/* References — collapsed, abbreviated, under the briefing */}
+                  {briefing.refs.length > 0 && (
+                    <div style={{ marginTop:12, paddingTop:10, borderTop:'1px solid var(--border)' }}>
+                      <button onClick={() => setShowSources(v => !v)} className="btn-ghost"
+                        style={{ fontSize:11, fontWeight:600, color:'var(--text-3)', padding:0 }}>
+                        {showSources ? '▾' : '▸'} Sources ({briefing.refs.length})
+                      </button>
+                      {showSources && (
+                        <div style={{ display:'flex', flexDirection:'column', gap:5, marginTop:8 }}>
+                          {briefing.refs.map((r, i) => (
+                            <a key={i} href={r.url} target="_blank" rel="noopener noreferrer"
+                              style={{ display:'flex', gap:7, alignItems:'baseline', textDecoration:'none',
+                                fontSize:11, color:'var(--text-3)' }}>
+                              <span style={{ color:'var(--text-5)', flexShrink:0 }}>[{i+1}]</span>
+                              <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.title}</span>
+                              <span style={{ fontSize:9, color:'var(--text-5)', textTransform:'uppercase', flexShrink:0 }}>· {r.type}</span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Freshness + deep dive */}
                   <div style={{ marginTop:10, paddingTop:10, borderTop:'1px solid var(--border)',
-                    fontSize:10, color:'var(--text-4)' }}>
-                    {briefing.item_count} sources · updated {new Date(briefing.updated_at).toLocaleString()}
+                    display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+                    {(() => { const f = timeAgo(briefing.updated_at); return (
+                      <span style={{ fontSize:10, color: f.stale ? 'var(--orange-light)' : 'var(--text-4)' }}>
+                        {briefing.item_count} sources · {f.stale ? `⚠ synced ${f.label} — refresh` : `synced ${f.label}`}
+                      </span>
+                    )})()}
+                    <button onClick={() => onDeepDive(`Give me a deep, up-to-date research briefing on ${activeTopic}, covering the latest developments and why they matter.`)}
+                      className="btn-ghost" style={{ fontSize:11, color:'var(--orange-light)', flexShrink:0 }}>
+                      ⤢ Deep dive in chat
+                    </button>
                   </div>
                 </div>
-              ) : (
+
+                {/* Ask this briefing */}
+                <div style={{ marginTop:10 }}>
+                  <div style={{ display:'flex', gap:8 }}>
+                    <input style={{ ...s.input, flex:1 }} placeholder={`Ask about ${activeTopic}…`}
+                      value={askInput} onChange={e => setAskInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleAsk()} />
+                    <button className="btn-primary" onClick={handleAsk} disabled={asking || !askInput.trim()} style={{ flexShrink:0 }}>
+                      {asking ? '…' : 'Ask'}
+                    </button>
+                  </div>
+                  {askAnswer && (
+                    <div style={{ ...s.surface, padding:'12px 14px', marginTop:8 }}>
+                      <div className="report-body">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{askAnswer}</ReactMarkdown>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>) : (
                 <p style={{ fontSize:12, color:'var(--text-4)', fontStyle:'italic' }}>
                   No briefing yet — sync this topic (↻) to generate one.
                 </p>
               )}
             </div>
           )}
-
-          {/* Items */}
-          <div>
-            <span style={s.label}>{activeTopic ? `Feed — ${activeTopic}` : 'All Intelligence'} ({items.length})</span>
-            {items.length === 0 ? (
-              <p style={{ fontSize:12, color:'var(--text-4)', fontStyle:'italic' }}>
-                {activeTopic ? 'Nothing yet — try syncing.' : 'No items yet. Sync a topic.'}
-              </p>
-            ) : (
-              <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
-                {items.map(item => (
-                  <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer"
-                    style={{ ...s.surface, display:'block', textDecoration:'none', padding:'10px 12px', transition:'border-color 0.15s' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(249,115,22,0.25)' }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}>
-                    <div style={{ display:'flex', gap:9, alignItems:'flex-start' }}>
-                      <span style={{
-                        fontSize:9, fontWeight:700, padding:'2px 7px',
-                        border:`1px solid ${item.item_type==='arxiv' ? 'rgba(99,102,241,0.35)' : 'var(--border)'}`,
-                        color: item.item_type==='arxiv' ? '#818cf8' : 'var(--text-4)',
-                        background: item.item_type==='arxiv' ? 'rgba(99,102,241,0.07)' : 'var(--surface-2)',
-                        borderRadius:4, textTransform:'uppercase' as const, flexShrink:0, marginTop:2,
-                      }}>{item.item_type}</span>
-                      <div style={{ minWidth:0 }}>
-                        <p style={{ fontSize:12, color:'var(--text-2)', lineHeight:1.45, marginBottom:3,
-                          overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' as any }}>
-                          {item.title}
-                        </p>
-                        <p style={{ fontSize:10, color:'var(--text-4)' }}>{new Date(item.discovered_at).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
         </>)}
 
         {/* ── Job tab ── */}

@@ -15,6 +15,7 @@ export default function App() {
   const [historyRefresh, setHistoryRefresh] = useState(0)
   const [view, setView] = useState<MainView>('chat')
   const [chatKey, setChatKey] = useState(0)
+  const [pendingQuery, setPendingQuery] = useState<string | undefined>()
 
   if (!user) {
     return <Login onLogin={login} />
@@ -23,7 +24,16 @@ export default function App() {
   function handleNewChat() {
     setActiveThreadId(undefined)
     setLoadThreadId(undefined)
+    setPendingQuery(undefined)
     setChatKey(n => n + 1)   // force Chat remount → clears messages state
+    setView('chat')
+  }
+
+  function handleDeepDive(query: string) {
+    setActiveThreadId(undefined)
+    setLoadThreadId(undefined)
+    setPendingQuery(query)
+    setChatKey(n => n + 1)   // fresh Chat that auto-runs the query
     setView('chat')
   }
 
@@ -54,7 +64,7 @@ export default function App() {
       <main style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0, height: '100%' }}>
           {view === 'monitor' && (
-            <MonitorPanel onClose={handleNewChat} />
+            <MonitorPanel onClose={handleNewChat} onDeepDive={handleDeepDive} />
           )}
           {view === 'dashboard' && (
             <Dashboard onClose={handleNewChat} />
@@ -64,6 +74,7 @@ export default function App() {
               key={chatKey}
               onConversationCreated={handleConversationCreated}
               loadThreadId={loadThreadId}
+              initialQuery={pendingQuery}
             />
           )}
         </div>

@@ -106,6 +106,9 @@ class JobPostRequest(BaseModel):
 class TagRequest(BaseModel):
     tag: str = Field(..., min_length=1, max_length=50)
 
+class AskBriefingRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=500)
+
 # ── Auth ───────────────────────────────────────────────────────────────────────
 @app.post("/auth/google")
 async def auth_google(request: Request, body: GoogleAuthRequest):
@@ -371,6 +374,20 @@ async def refresh_briefing(topic: str, user: dict = Depends(get_current_user)):
     if not briefing:
         raise HTTPException(422, "No items to brief on yet — sync this topic first.")
     return briefing
+
+@app.post("/monitor/briefing/{topic}/ask")
+async def ask_briefing(topic: str, body: AskBriefingRequest, user: dict = Depends(get_current_user)):
+    if not _rate_check(f"ask:{user['google_id']}", 15, 60):
+        raise HTTPException(429, "Question rate limit — wait a moment.")
+    result = await asyncio.get_event_loop().run_in_executor(
+        None, monitor.ask_briefing, user["google_id"], topic, body.question.strip()
+    )
+    return result
+
+@app.get("/monitor/new-counts")
+async def new_counts(user: dict = Depends(get_current_user)):
+    """New items per topic since the user's last visit — for per-topic badges."""
+    return {"counts": monitor.get_new_counts_by_topic(user["google_id"])}
 
 @app.get("/monitor/digest")
 async def get_digest(user: dict = Depends(get_current_user)):

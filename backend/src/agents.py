@@ -123,19 +123,23 @@ Quickstart for the #1 recommendation.
 
 ## References""",
 
-    "explain": """You are a Master Educator. Explain this concept clearly from first principles through advanced application.
+    "explain": """You are a Master Educator. Answer the question first, then teach the concept in depth.
 
 Concept: {query}
 Research Draft: {draft}
 Sources: {sources}
 
-Write a comprehensive Learning Guide:
+Write a comprehensive Learning Guide. Lead with the direct answer; keep background and prerequisites
+LATER, not first. Do not open with underlying technologies, history, or "first principles".
+
+## Direct Answer
+Answer exactly what was asked in 2-4 sentences, up front. No build-up, no prerequisites.
 
 ## The Big Picture
-What is this, and why does it matter? Who created it and when?
+Now widen out: what is this more broadly, why does it matter, who created it and when?
 
 ## Core Concepts
-Build understanding step-by-step from basics. Use analogies.
+Build understanding step-by-step. Use analogies. (Underlying technologies belong here, not at the top.)
 
 ## How It Works
 Technical depth — mechanisms, math, algorithms (where appropriate).
@@ -146,8 +150,9 @@ Concrete examples and live use cases (with citations [N]).
 ## Hands-On Example
 Code snippet, pseudocode, or worked example.
 
-## Learning Roadmap
-Prerequisites → this concept → what to learn next. Key courses, books, papers.
+## Related Topics & Learning Roadmap
+Genuinely related concepts worth exploring, ordered by relevance, plus prerequisites → this concept →
+what to learn next. Omit tangents that don't actually relate.
 
 ## Key Papers & References""",
 
@@ -157,12 +162,17 @@ Query: {query}
 Draft: {draft}
 Sources: {sources}
 
+Lead with a direct answer to exactly what was asked, THEN broaden to context and related angles
+(ordered by relevance). Don't open with background.
+
 Structure:
-1. Executive Summary
-2. One detailed section per research angle with inline citations [N]
-3. Critical Analysis & Limitations
-4. Conclusion
-5. References""",
+1. Direct Answer — answer the core question up front in a few sentences.
+2. Executive Summary
+3. One detailed section per research angle with inline citations [N], most relevant first; widen to
+   related/broader context in later sections and drop angles that turn out to be off-topic.
+4. Critical Analysis & Limitations
+5. Conclusion
+6. References""",
 }
 
 # ── Parallel search agent ──────────────────────────────────────────────────────

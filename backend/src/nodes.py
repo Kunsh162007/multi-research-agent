@@ -26,7 +26,10 @@ Query: {query}
 {prior_context}
 Return ONLY valid JSON:
 {{"clarified_query":"A self-contained specific version","research_angles":["angle 1","angle 2","angle 3","angle 4"]}}
-Produce 3-5 distinct angles that together give complete coverage.
+Produce 3-5 distinct angles, ORDERED BY RELEVANCE to exactly what the user asked:
+- Angle 1 MUST directly address the core question itself (the literal thing asked).
+- Later angles widen out to related/contextual/background topics, from most to least relevant.
+Do NOT lead with background or prerequisites (e.g. underlying architectures, history) — those are later angles, not the first one.
 If prior research context is provided, build upon it — focus on aspects NOT already covered."""
 
 _REWRITE_QUERY = """Rewrite this research query to be clearer and more searchable.
@@ -44,8 +47,14 @@ _GENERATE = """Write a draft answer grounded ONLY in findings. Use inline citati
 Query: {query} | Mode: {mode} | Angles: {angles}
 Findings:
 {findings}
-Write thoroughly, covering every angle. For 'validate' mode focus on novelty analysis.
-For 'discover' mode focus on tool comparison. For 'explain' mode focus on clear explanation."""
+STRUCTURE THE ANSWER ANSWER-FIRST:
+1. Open by DIRECTLY answering exactly what was asked — get to the point in the first sentences,
+   before any background, history, or underlying mechanisms.
+2. Then widen out to related and contextual material, ordered from most to least relevant.
+Be selective: use findings that genuinely bear on the question; ignore findings that are off-topic
+or only loosely related. Do not pad with background just because it appeared in the findings.
+For 'validate' mode focus on novelty analysis. For 'discover' mode focus on tool comparison.
+For 'explain' mode focus on clear explanation."""
 
 _VALIDATE = """Score this report 0-100 on accuracy,completeness,clarity,overall.
 Query: {query} | Report: {report}

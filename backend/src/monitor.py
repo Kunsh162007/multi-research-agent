@@ -345,6 +345,48 @@ Rules: reference only the items provided, always hyperlink sources inline, no fa
         ).fetchone()[0]
         return count
 
+    def get_new_counts_by_topic(self, user_id: str) -> dict[str, int]:
+        """New items per topic since last visit — powers per-topic 'NEW' badges."""
+        self._ensure_visits_table()
+        row = self.conn.execute("SELECT last_checked FROM monitor_visits WHERE user_id=?", (user_id,)).fetchone()
+        since = row[0] if row else "1970-01-01T00:00:00+00:00"
+        rows = self.conn.execute(
+            "SELECT topic, COUNT(*) FROM knowledge_items WHERE user_id=? AND discovered_at > ? GROUP BY topic",
+            (user_id, since),
+        ).fetchall()
+        return {r[0]: r[1] for r in rows}
+
+    # ─── Ask-the-briefing Q&A ─────────────────────────────────────────────────
+
+    _ASK_PROMPT = """You are a research assistant answering a question about "{topic}" using ONLY the tracked sources below.
+
+Sources (cite by number, hyperlinked):
+{items}
+
+Question: {question}
+
+Answer the question DIRECTLY in the first sentence, then add only the relevant supporting detail.
+Cite sources inline as markdown links. If the sources don't cover it, say so plainly. No fabricated links."""
+
+    def ask_briefing(self, user_id: str, topic: str, question: str, max_items: int = 15) -> dict:
+        """Answer a follow-up question grounded in a topic's tracked sources."""
+        items = self.get_knowledge_items(user_id, topic=topic, limit=max_items)
+        if not items:
+            return {"answer": "No sources tracked for this topic yet — sync it first."}
+        items_text = "\n".join(
+            f"[{i + 1}] {it['title']} ({it['item_type']}) — {it['url']}\n{(it['content'] or '')[:300]}"
+            for i, it in enumerate(items)
+        )
+        try:
+            from src.llm import get_llm
+            response = get_llm(temperature=0.2).invoke(
+                self._ASK_PROMPT.format(topic=topic, items=items_text, question=question)
+            )
+            return {"answer": response.content.strip()}
+        except Exception as e:
+            logger.error(f"ask_briefing failed for topic={topic}: {e}")
+            return {"answer": "Sorry — couldn't answer that right now. Please try again."}
+
     # ─── Job post → topics ────────────────────────────────────────────────────
 
     _JOB_TOPIC_PROMPT = """You are a career intelligence expert. Identify 6-8 broad technical domains someone should monitor to stay competitive.
