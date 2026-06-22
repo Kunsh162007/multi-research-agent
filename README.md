@@ -30,7 +30,7 @@ History:       history.db      (chat log — user-scoped, browsable)
 Monitor:       monitor.db      (knowledge items — per user/topic)
 Auth:          Google OAuth → JWT in sessionStorage
 Frontend:      React + Vite + Tailwind
-Backend:       FastAPI + LangGraph + Claude claude-sonnet-4-6
+Backend:       FastAPI + LangGraph + multi-model router (Groq + free Gemini)
 ```
 
 ---
@@ -59,7 +59,8 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 cp .env.example .env
-# Edit .env — set ANTHROPIC_API_KEY and GOOGLE_CLIENT_ID at minimum
+# Edit .env — set GROQ_API_KEY and GOOGLE_CLIENT_ID at minimum.
+# Optional (free): GEMINI_API_KEY (vision + long-context), SEARXNG_URL (web-wide search)
 ```
 
 ### 3. Frontend
@@ -191,10 +192,14 @@ All config lives in `backend/.env`:
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
-| `ANTHROPIC_API_KEY` | ✓ | — | Claude API key |
+| `GROQ_API_KEY` | ✓ | — | Free LLM backend (fast/heavy/reason/vision/audio) |
 | `GOOGLE_CLIENT_ID` | ✓ | — | OAuth client ID |
 | `JWT_SECRET` | ✓ | weak default | Change in production |
-| `TAVILY_API_KEY` | — | stub search | Real web search |
+| `GEMINI_API_KEY` | — | Groq fallback | Free vision + long-context synthesis |
+| `SEARXNG_URL` / `USE_SEARXNG` | — | Tavily/stub | Web-wide meta-search |
+| `USE_DEEP_CRAWL` | — | false | Follow links from search hits (BFS crawl) |
+| `USE_CONSENSUS` | — | false | Two-model draft + judge merge |
+| `TAVILY_API_KEY` | — | stub search | Web search fallback |
 | `MAX_ITERATIONS` | — | 8 | Self-RAG loop cap |
 | `QUALITY_TARGET` | — | 75 | Self-RAG quality gate (0-100) |
 | `MONITOR_INTERVAL_HOURS` | — | 24 | Knowledge monitor frequency |
