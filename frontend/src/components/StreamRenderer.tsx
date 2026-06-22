@@ -1,6 +1,17 @@
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import Mermaid from './Mermaid'
 import type { SSEEvent, Validation, Source, StepEvent } from '../types'
+
+// Intercept ```mermaid fences and render them as inline SVG diagrams.
+const markdownComponents: Components = {
+  code({ className, children, ...props }) {
+    if (/language-mermaid/.test(className || '')) {
+      return <Mermaid chart={String(children).replace(/\n$/, '')} />
+    }
+    return <code className={className} {...props}>{children}</code>
+  },
+}
 
 interface Props {
   events: SSEEvent[]
@@ -143,7 +154,7 @@ export default function StreamRenderer({ events, report, isStreaming, quality, i
             )}
           </div>
           <div className="report-body">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{report}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{report}</ReactMarkdown>
             {isWriting && <span className="cursor-blink" />}
           </div>
         </div>

@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { exportReport } from '../lib/api'
 
 interface Props { threadId: string; report?: string }
-type Format = 'md' | 'pdf' | 'bib'
+type Format = 'md' | 'pdf' | 'docx' | 'bib'
 
-const OPTIONS: { format: Format; label: string; ext: string }[] = [
-  { format: 'md',  label: 'Markdown', ext: '.md'  },
-  { format: 'pdf', label: 'PDF',      ext: '.pdf' },
-  { format: 'bib', label: 'BibTeX',   ext: '.bib' },
+const OPTIONS: { format: Format; label: string; ext: string; style?: 'paper' }[] = [
+  { format: 'md',   label: 'Markdown',       ext: '.md'   },
+  { format: 'pdf',  label: 'PDF',            ext: '.pdf'  },
+  { format: 'pdf',  label: 'Research Paper', ext: '.pdf', style: 'paper' },
+  { format: 'docx', label: 'Word',           ext: '.docx' },
+  { format: 'bib',  label: 'BibTeX',         ext: '.bib'  },
 ]
 
 export default function ExportButton({ threadId, report }: Props) {
@@ -15,9 +17,9 @@ export default function ExportButton({ threadId, report }: Props) {
   const [loading, setLoading] = useState<Format | null>(null)
   const [copied, setCopied]   = useState(false)
 
-  async function handleExport(format: Format) {
+  async function handleExport(format: Format, style?: 'paper') {
     setLoading(format); setOpen(false)
-    try { await exportReport(threadId, format) }
+    try { await exportReport(threadId, format, style) }
     catch (err) { console.error('Export failed', err) }
     finally { setLoading(null) }
   }
@@ -56,7 +58,7 @@ export default function ExportButton({ threadId, report }: Props) {
             boxShadow:'0 8px 32px rgba(0,0,0,0.4)',
           }}>
             {OPTIONS.map((o, i) => (
-              <button key={o.format} onClick={() => handleExport(o.format)} style={{
+              <button key={o.label} onClick={() => handleExport(o.format, o.style)} style={{
                 width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', gap:16,
                 padding:'9px 13px', fontSize:12, color:'var(--text-3)',
                 borderBottom: i < OPTIONS.length-1 ? '1px solid var(--border)' : 'none',

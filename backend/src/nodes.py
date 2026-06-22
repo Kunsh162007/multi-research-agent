@@ -312,6 +312,16 @@ def synthesize(state: ResearchState) -> dict:
         audience=audience,
     )
 
+    # Encourage rich, mixed-format output: diagrams + tables.
+    diagram_emphasis = mode in ("explain", "research")
+    prompt += (
+        "\n\nFORMAT: Use GitHub-flavored Markdown. Where a process, architecture, comparison, "
+        "timeline, or relationship would aid understanding, include a Mermaid diagram in a "
+        "```mermaid fenced code block (flowchart/sequenceDiagram/timeline/mindmap). Use Markdown "
+        "tables for comparisons."
+        + (" Include at least one Mermaid diagram." if diagram_emphasis else "")
+    )
+
     # Append a Conflicting Evidence directive when contradictions were detected.
     contradictions = state.get("contradictions", []) or []
     if contradictions:

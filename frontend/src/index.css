@@ -633,6 +633,13 @@ textarea::placeholder { color: var(--text-4); }
 .source-cred.cred-mid { color: #d97706; background: rgba(217,119,6,.12); }
 .source-cred.cred-lo  { color: #dc2626; background: rgba(220,38,38,.12); }
 
+/* Inline Mermaid diagrams */
+.mermaid-diagram { display:flex; justify-content:center; margin:18px 0; padding:14px;
+  background: var(--surface-2); border:1px solid var(--border); border-radius: var(--radius-sm); overflow-x:auto; }
+.mermaid-diagram svg { max-width:100%; height:auto; }
+.mermaid-fallback { background: var(--surface-2); border:1px solid var(--border);
+  border-radius: var(--radius-sm); padding:12px; font-size:12px; overflow-x:auto; }
+
 /* Report meta */
 .report-meta-bar {
   display: flex; align-items: center; gap: 10px;
