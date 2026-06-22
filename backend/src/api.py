@@ -95,6 +95,7 @@ class ResearchRequest(BaseModel):
 
 class AddTopicRequest(BaseModel):
     topic: str = Field(..., min_length=1, max_length=200)
+    sync_interval_hours: int = Field(24, ge=1, le=720)
 
 class JobPostRequest(BaseModel):
     job_description: str = Field("", max_length=5000)
@@ -325,8 +326,8 @@ async def list_topics(user: dict = Depends(get_current_user)):
 @app.post("/monitor/topics")
 async def add_topic(body: AddTopicRequest, user: dict = Depends(get_current_user)):
     if not body.topic.strip(): raise HTTPException(400, "Topic cannot be empty")
-    monitor.add_topic(user["google_id"], body.topic.strip())
-    return {"added": body.topic.strip()}
+    monitor.add_topic(user["google_id"], body.topic.strip(), body.sync_interval_hours)
+    return {"added": body.topic.strip(), "sync_interval_hours": body.sync_interval_hours}
 
 @app.delete("/monitor/topics/{topic}")
 async def remove_topic(topic: str, user: dict = Depends(get_current_user)):

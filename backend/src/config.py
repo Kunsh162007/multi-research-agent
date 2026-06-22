@@ -68,7 +68,10 @@ JWT_EXPIRE_HOURS = 12
 
 CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")]
 
-MONITOR_INTERVAL_HOURS = int(os.getenv("MONITOR_INTERVAL_HOURS", "24"))
+MONITOR_INTERVAL_HOURS = int(os.getenv("MONITOR_INTERVAL_HOURS", "24"))  # default per-topic cadence
+# How often the scheduler wakes to sync topics that are due. Must be <= the smallest
+# per-topic interval you want to honor (default 1h so 6h/12h/daily/weekly all fire on time).
+MONITOR_SWEEP_HOURS = int(os.getenv("MONITOR_SWEEP_HOURS", "1"))
 
 # Email notifications (optional — leave blank to disable)
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")

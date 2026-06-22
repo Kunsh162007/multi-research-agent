@@ -10,11 +10,11 @@ Runs on two triggers:
 import hashlib
 import logging
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from src.config import MONITOR_DB, MONITOR_INTERVAL_HOURS
+from src.config import MONITOR_DB, MONITOR_INTERVAL_HOURS, MONITOR_SWEEP_HOURS
 from src.tools import arxiv_search, web_search
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class KnowledgeMonitor:
         self.scheduler.add_job(
             self._scheduled_run,
             trigger="interval",
-            hours=MONITOR_INTERVAL_HOURS,
+            hours=MONITOR_SWEEP_HOURS,
             id="monitor_sweep",
             replace_existing=True,
         )
@@ -42,6 +42,7 @@ class KnowledgeMonitor:
                 user_id    TEXT NOT NULL,
                 topic      TEXT NOT NULL,
                 created_at TEXT NOT NULL,
+                sync_interval_hours INTEGER NOT NULL DEFAULT 24,
                 UNIQUE(user_id, topic)
             );
 
@@ -78,6 +79,11 @@ class KnowledgeMonitor:
                 PRIMARY KEY (user_id, topic)
             );
         """)
+        # Migration: add sync_interval_hours to pre-existing user_topics tables.
+        try:
+            self.conn.execute("ALTER TABLE user_topics ADD COLUMN sync_interval_hours INTEGER NOT NULL DEFAULT 24")
+        except sqlite3.OperationalError:
+            pass  # column already exists
         self.conn.commit()
 
     def _now(self) -> str:
@@ -85,11 +91,15 @@ class KnowledgeMonitor:
 
     # ─── Topic management ─────────────────────────────────────────────────────
 
-    def add_topic(self, user_id: str, topic: str) -> bool:
+    def add_topic(self, user_id: str, topic: str, interval_hours: int = MONITOR_INTERVAL_HOURS) -> bool:
         try:
+            interval = max(1, int(interval_hours))
+            # Upsert so re-adding a topic updates its sync cadence.
             self.conn.execute(
-                "INSERT OR IGNORE INTO user_topics (user_id, topic, created_at) VALUES (?, ?, ?)",
-                (user_id, topic.strip(), self._now()),
+                "INSERT INTO user_topics (user_id, topic, created_at, sync_interval_hours) "
+                "VALUES (?, ?, ?, ?) "
+                "ON CONFLICT(user_id, topic) DO UPDATE SET sync_interval_hours=excluded.sync_interval_hours",
+                (user_id, topic.strip(), self._now(), interval),
             )
             self.conn.commit()
             return True
@@ -103,10 +113,31 @@ class KnowledgeMonitor:
 
     def get_topics(self, user_id: str) -> list[dict]:
         cursor = self.conn.execute(
-            "SELECT topic, created_at FROM user_topics WHERE user_id=? ORDER BY created_at DESC",
+            "SELECT topic, created_at, sync_interval_hours FROM user_topics WHERE user_id=? ORDER BY created_at DESC",
             (user_id,),
         )
-        return [{"topic": r[0], "created_at": r[1]} for r in cursor.fetchall()]
+        return [{"topic": r[0], "created_at": r[1], "sync_interval_hours": r[2]} for r in cursor.fetchall()]
+
+    def _due_topics(self, user_id: str) -> list[str]:
+        """Topics whose per-topic interval has elapsed since their last sync (or never synced)."""
+        rows = self.conn.execute(
+            "SELECT topic, sync_interval_hours FROM user_topics WHERE user_id=?", (user_id,)
+        ).fetchall()
+        now = datetime.now(timezone.utc)
+        due = []
+        for topic, interval in rows:
+            last = self.get_last_run(user_id, topic)
+            if not last:
+                due.append(topic)
+                continue
+            try:
+                ran_at = datetime.fromisoformat(last["ran_at"])
+            except (ValueError, TypeError):
+                due.append(topic)
+                continue
+            if now - ran_at >= timedelta(hours=max(1, interval or MONITOR_INTERVAL_HOURS)):
+                due.append(topic)
+        return due
 
     # ─── Content ingestion ────────────────────────────────────────────────────
 
@@ -448,14 +479,22 @@ Return ONLY valid JSON:
     # ─── Lifecycle ────────────────────────────────────────────────────────────
 
     def _scheduled_run(self):
-        logger.info("Monitor scheduled sweep starting…")
+        """Sweep wakes hourly; sync only the topics whose per-topic interval has elapsed."""
         from src.email_notify import send_monitor_digest
         from src.history import history_store
 
         cursor = self.conn.execute("SELECT DISTINCT user_id FROM user_topics")
         for (user_id,) in cursor.fetchall():
-            results = self.sync_user(user_id)
-            total_new = sum(results.values())
+            due = self._due_topics(user_id)
+            if not due:
+                continue
+            logger.info(f"Monitor sweep: user={user_id} syncing {len(due)} due topic(s)")
+            total_new = 0
+            for topic in due:
+                try:
+                    total_new += self.sync_topic(user_id, topic)
+                except Exception as e:
+                    logger.error(f"scheduled sync failed user={user_id} topic={topic}: {e}")
             if total_new > 0:
                 user = history_store.get_user(user_id)
                 if user and user.get("email"):
@@ -465,7 +504,7 @@ Return ONLY valid JSON:
     def start(self):
         if not self.scheduler.running:
             self.scheduler.start()
-            logger.info(f"Monitor scheduler started (interval={MONITOR_INTERVAL_HOURS}h)")
+            logger.info(f"Monitor scheduler started (sweep every {MONITOR_SWEEP_HOURS}h, per-topic intervals)")
 
     def stop(self):
         if self.scheduler.running:

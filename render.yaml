@@ -36,6 +36,8 @@ services:
         value: https://research-assistant-0g24.onrender.com
       - key: MONITOR_INTERVAL_HOURS
         value: "24"
+      - key: MONITOR_SWEEP_HOURS
+        value: "1"
       - key: MAX_ITERATIONS
         value: "8"
       - key: QUALITY_TARGET

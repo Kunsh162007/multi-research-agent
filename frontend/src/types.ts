@@ -33,7 +33,7 @@ export interface KnowledgeItem {
   source: string; url: string; discovered_at: string; item_type: 'arxiv' | 'web'
 }
 
-export interface Topic { topic: string; created_at: string }
+export interface Topic { topic: string; created_at: string; sync_interval_hours?: number }
 
 export interface BriefingRef { title: string; url: string; type: string }
 export interface Briefing {

@@ -16,6 +16,20 @@ const COMPANY_TYPES: { id: CompanyType; label: string; desc: string }[] = [
   { id: 'other',        label: 'Other',         desc: 'Other type of company' },
 ]
 
+const SYNC_INTERVALS: { label: string; hours: number }[] = [
+  { label: 'Every 6h', hours: 6 },
+  { label: 'Every 12h', hours: 12 },
+  { label: 'Daily', hours: 24 },
+  { label: 'Weekly', hours: 168 },
+]
+
+function intervalLabel(hours?: number): string {
+  if (!hours) return 'daily'
+  const match = SYNC_INTERVALS.find(i => i.hours === hours)
+  if (match) return match.label.toLowerCase()
+  return hours < 24 ? `every ${hours}h` : `every ${Math.round(hours / 24)}d`
+}
+
 function timeAgo(iso: string): { label: string; stale: boolean } {
   const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000))
   const stale = mins > 7 * 24 * 60          // older than 7 days → nudge a refresh
@@ -47,6 +61,8 @@ export default function MonitorPanel({ onClose, onDeepDive }: Props) {
   const [askAnswer, setAskAnswer]   = useState<string | null>(null)
   const [asking, setAsking]         = useState(false)
   const [newTopic, setNewTopic]     = useState('')
+  const [newInterval, setNewInterval] = useState(24)
+  const [addBusy, setAddBusy]       = useState(false)
   const [syncing, setSyncing]       = useState(false)
   const [syncingTopic, setSyncingTopic] = useState<string | null>(null)
   const [loading, setLoading]       = useState(true)
@@ -77,10 +93,28 @@ export default function MonitorPanel({ onClose, onDeepDive }: Props) {
   }, [])
 
   async function handleAddTopic() {
-    if (!newTopic.trim()) return
-    await addTopic(newTopic.trim())
-    setTopics(await listTopics())
-    setNewTopic('')
+    const topic = newTopic.trim()
+    if (!topic || addBusy) return
+    setAddBusy(true)
+    try {
+      await addTopic(topic, newInterval)
+      setNewTopic('')
+      setTopics(await listTopics())
+      // Auto-sync the new topic right away so its briefing is ready immediately.
+      setActiveTopic(topic)
+      setSyncingTopic(topic)
+      try {
+        const result = await syncTopic(topic)
+        setSyncResult(`"${topic}" synced (${intervalLabel(newInterval)}) — ${result.new_items} new items`)
+      } catch (e: any) {
+        setSyncResult(`"${topic}" added — sync failed: ${e.message}`)
+      } finally {
+        setSyncingTopic(null)
+      }
+      loadBriefing(topic)
+    } finally {
+      setAddBusy(false)
+    }
   }
 
   async function handleSyncAll() {
@@ -208,8 +242,28 @@ export default function MonitorPanel({ onClose, onDeepDive }: Props) {
             <div style={{ display: 'flex', gap: 8 }}>
               <input style={{ ...s.input, flex: 1 }} placeholder="e.g. LLM Inference Optimization…"
                 value={newTopic} onChange={e => setNewTopic(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAddTopic()} />
-              <button className="btn-primary" onClick={handleAddTopic} style={{ flexShrink: 0 }}>Add</button>
+                onKeyDown={e => e.key === 'Enter' && handleAddTopic()} disabled={addBusy} />
+              <button className="btn-primary" onClick={handleAddTopic} disabled={addBusy || !newTopic.trim()}
+                style={{ flexShrink: 0, opacity: addBusy || !newTopic.trim() ? 0.5 : 1 }}>
+                {addBusy ? 'Adding…' : 'Add'}
+              </button>
+            </div>
+
+            {/* Sync frequency — applied to the new topic, then it auto-syncs */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 10, color: 'var(--text-4)', marginRight: 2 }}>Auto-sync</span>
+              {SYNC_INTERVALS.map(iv => {
+                const on = newInterval === iv.hours
+                return (
+                  <button key={iv.hours} onClick={() => setNewInterval(iv.hours)} style={{
+                    padding: '4px 11px', borderRadius: 20, fontSize: 11, fontWeight: 500,
+                    border: '1px solid', cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'var(--font-ui)',
+                    borderColor: on ? 'rgba(249,115,22,0.4)' : 'var(--border)',
+                    background: on ? 'var(--orange-tint)' : 'transparent',
+                    color: on ? 'var(--orange-light)' : 'var(--text-4)',
+                  }}>{iv.label}</button>
+                )
+              })}
             </div>
           </div>
 
@@ -253,6 +307,10 @@ export default function MonitorPanel({ onClose, onDeepDive }: Props) {
                         background: active ? 'var(--orange)' : 'var(--text-5)' }} />
                       <span style={{ flex:1, fontSize:13, color: active ? 'var(--text)' : 'var(--text-3)',
                         overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.topic}</span>
+                      <span title={`Auto-syncs ${intervalLabel(t.sync_interval_hours)}`}
+                        style={{ fontSize:9, color:'var(--text-5)', flexShrink:0, whiteSpace:'nowrap' }}>
+                        ⟳ {intervalLabel(t.sync_interval_hours)}
+                      </span>
                       {newCounts[t.topic] > 0 && (
                         <span title={`${newCounts[t.topic]} new since your last visit`} style={{
                           fontSize:9, fontWeight:700, letterSpacing:'0.04em', flexShrink:0,

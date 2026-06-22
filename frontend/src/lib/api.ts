@@ -75,7 +75,8 @@ export const revokeShare = (threadId: string) => api('DELETE', `/history/${threa
 
 // ── Monitor ───────────────────────────────────────────────────────────────────
 export const listTopics = (): Promise<Topic[]> => api('GET', '/monitor/topics')
-export const addTopic = (topic: string) => api('POST', '/monitor/topics', { topic })
+export const addTopic = (topic: string, sync_interval_hours = 24) =>
+  api('POST', '/monitor/topics', { topic, sync_interval_hours })
 export const removeTopic = (topic: string) => api('DELETE', `/monitor/topics/${encodeURIComponent(topic)}`)
 export const syncAll = () => api<{ synced: Record<string, number> }>('POST', '/monitor/sync')
 export const syncTopic = (topic: string) => api<{ topic: string; new_items: number }>('POST', `/monitor/sync/${encodeURIComponent(topic)}`)
