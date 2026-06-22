@@ -4,13 +4,17 @@ import Mermaid from './Mermaid'
 import type { SSEEvent, Validation, Source, StepEvent } from '../types'
 
 // Intercept ```mermaid fences and render them as inline SVG diagrams.
-const markdownComponents: Components = {
-  code({ className, children, ...props }) {
-    if (/language-mermaid/.test(className || '')) {
-      return <Mermaid chart={String(children).replace(/\n$/, '')} />
-    }
-    return <code className={className} {...props}>{children}</code>
-  },
+// Built per-render so diagrams stay as raw source until streaming finishes
+// (rendering a half-streamed block triggers mermaid's "Syntax error" graphic).
+function buildMarkdownComponents(isStreaming: boolean): Components {
+  return {
+    code({ className, children, ...props }) {
+      if (/language-mermaid/.test(className || '')) {
+        return <Mermaid chart={String(children).replace(/\n$/, '')} enabled={!isStreaming} />
+      }
+      return <code className={className} {...props}>{children}</code>
+    },
+  }
 }
 
 interface Props {
@@ -154,7 +158,7 @@ export default function StreamRenderer({ events, report, isStreaming, quality, i
             )}
           </div>
           <div className="report-body">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{report}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={buildMarkdownComponents(isStreaming)}>{report}</ReactMarkdown>
             {isWriting && <span className="cursor-blink" />}
           </div>
         </div>
