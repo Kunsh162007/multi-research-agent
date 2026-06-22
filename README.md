@@ -143,6 +143,18 @@ GET  /history/search?q=safety   — full-text search
 DELETE /history/<thread_id>     — delete a conversation
 ```
 
+### Multimodal Input
+Attach **any data form** — the `/upload` endpoint normalizes everything into research
+context: PDF/DOCX/TXT/MD (text), **images** (PNG/JPG/WEBP → vision caption + OCR),
+**audio** (MP3/WAV/M4A → Whisper transcript), and **data files** (CSV/JSON/XLSX → pandas
+summary). Image vision needs `GEMINI_API_KEY` (or Groq Llama-4); audio needs Groq Whisper.
+
+### Slash Commands
+Type `/` in the chat box for a Claude-Code-style command palette: `/research`, `/deep`,
+`/explain`, `/validate`, `/discover`, `/diagram`, `/consensus`, `/paper`, `/export`,
+`/upload`, `/help`. The repo also ships Claude Code project commands under
+`.claude/commands/` (`/deep-research`, `/make-paper`, `/add-topic`).
+
 ### Web-wide Deep Search (SearXNG)
 For research that "looks at every site", run the bundled self-hosted **SearXNG** meta-search
 (aggregates Google, Bing, DuckDuckGo, Brave, arXiv, GitHub, … — no API key):
