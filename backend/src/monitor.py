@@ -281,10 +281,12 @@ Rules: reference only the items provided, always hyperlink sources inline, no fa
         # Try the heavy model, fall back to the lighter model / OpenRouter on a rate
         # limit; if every LLM is unavailable, still ship a deterministic briefing so
         # the user always sees something.
+        # Full-quality model only (+ cross-provider OpenRouter if configured). We do NOT
+        # fall back to a lighter model — better to show the items than a degraded briefing.
         from src.router import resilient_complete
         briefing = resilient_complete(
             self._BRIEFING_PROMPT.format(topic=topic, items=items_text),
-            temperature=0.3, max_tokens=2048,
+            temperature=0.3, max_tokens=2048, roles=("heavy",),
         )
         if not briefing:
             logger.warning(f"generate_briefing: all models unavailable for topic={topic}; using fallback")
@@ -431,7 +433,7 @@ Cite sources inline as markdown links. If the sources don't cover it, say so pla
         from src.router import resilient_complete
         answer = resilient_complete(
             self._ASK_PROMPT.format(topic=topic, items=items_text, question=question),
-            temperature=0.2, max_tokens=1536,
+            temperature=0.2, max_tokens=1536, roles=("heavy",),
         )
         return {"answer": answer or "Sorry — all models are rate-limited right now. Please try again shortly."}
 
