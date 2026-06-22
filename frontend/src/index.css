@@ -627,7 +627,11 @@ textarea::placeholder { color: var(--text-4); }
 }
 .source-type   { font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--orange-light); }
 .source-title  { font-size: 11px; color: var(--text-2); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.source-domain { font-size: 10px; color: var(--text-4); }
+.source-domain { font-size: 10px; color: var(--text-4); display: flex; align-items: center; gap: 6px; }
+.source-cred { font-weight: 600; padding: 1px 5px; border-radius: 6px; font-size: 9px; }
+.source-cred.cred-hi  { color: #16a34a; background: rgba(22,163,74,.12); }
+.source-cred.cred-mid { color: #d97706; background: rgba(217,119,6,.12); }
+.source-cred.cred-lo  { color: #dc2626; background: rgba(220,38,38,.12); }
 
 /* Report meta */
 .report-meta-bar {

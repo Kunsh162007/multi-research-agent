@@ -20,9 +20,16 @@ const NODE_LABELS: Record<string, string> = {
   generate:         'Drafting analysis',
   grade_answer:     'Quality check',
   reflect:          'Identifying gaps',
+  verify:           'Verifying citations',
+  contradiction:    'Checking for conflicts',
   synthesize:       'Synthesizing report',
   validate:         'Validating output',
   resume:           'Resuming session',
+}
+
+function credibilityClass(score?: number): string {
+  if (score == null) return ''
+  return score >= 0.75 ? ' cred-hi' : score >= 0.4 ? ' cred-mid' : ' cred-lo'
 }
 
 function inferSourceType(url: string): string {
@@ -100,7 +107,14 @@ export default function StreamRenderer({ events, report, isStreaming, quality, i
                 <span className="source-title">
                   {(src.title || getDomain(src.url)).slice(0, 72)}
                 </span>
-                <span className="source-domain">{getDomain(src.url)}</span>
+                <span className="source-domain">
+                  {getDomain(src.url)}
+                  {src.credibility != null && (
+                    <span className={`source-cred${credibilityClass(src.credibility)}`}>
+                      {Math.round(src.credibility * 100)}%
+                    </span>
+                  )}
+                </span>
               </a>
             ))}
           </div>

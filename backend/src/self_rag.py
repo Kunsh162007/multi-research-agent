@@ -117,6 +117,8 @@ def grade_relevance(state: ResearchState) -> dict:
         fallback={"grades": [{"index": i, "grade": "PARTIAL", "reason": "fallback"} for i in range(len(docs))]},
     )
 
+    from src.credibility import score_finding, summarize_credibility
+
     existing = list(state.get("findings", []))
     for item in result.get("grades", []):
         idx = item.get("index", 0)
@@ -124,9 +126,14 @@ def grade_relevance(state: ResearchState) -> dict:
             doc = dict(docs[idx])
             doc["citation_index"] = len(existing) + 1
             doc["grade"] = item["grade"]
+            doc["credibility"] = score_finding(doc)
             existing.append(doc)
 
-    return {"findings": existing, "retrieved_docs": []}
+    return {
+        "findings": existing,
+        "retrieved_docs": [],
+        "credibility": summarize_credibility(existing),
+    }
 
 
 def grade_answer(state: ResearchState) -> dict:

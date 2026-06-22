@@ -8,7 +8,7 @@ export interface TokenEvent   { type: 'token';   text: string }
 export interface StateEvent   { type: 'state';   iteration: number; quality: number }
 export interface FinalEvent   { type: 'final';   report: string; validation: Validation; thread_id: string }
 export interface ErrorEvent   { type: 'error';   message: string }
-export interface Source       { url: string; title: string; source_type: string }
+export interface Source       { url: string; title: string; source_type: string; credibility?: number; signals?: string[] }
 export interface SourcesEvent { type: 'sources'; sources: Source[] }
 export type SSEEvent = StepEvent | TokenEvent | StateEvent | FinalEvent | ErrorEvent | SourcesEvent
 

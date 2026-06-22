@@ -1,10 +1,25 @@
-import json, logging
+import json, logging, re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from src.llm import get_llm, get_fast_llm
+from src.router import get_model
 from src.state import ResearchState
 from src.tools import TOOL_REGISTRY
 
 logger = logging.getLogger(__name__)
+
+# Findings count above which synthesis prefers the long-context tier.
+_LONG_CONTEXT_FINDINGS = 18
+
+_CONTRADICTION = """You are a contradiction-detection analyst. Examine the findings below and
+identify pairs of claims that DIRECTLY conflict — opposite conclusions, incompatible numbers,
+or contested facts. Be conservative: only report genuine conflicts.
+
+Findings:
+{findings}
+
+Return ONLY valid JSON:
+{{"contradictions":[{{"topic":"short label","claim_a":"...","source_a":N,"claim_b":"...","source_b":M}}]}}
+If there are no real conflicts return {{"contradictions":[]}}."""
 
 _ENHANCE = """You are a research query enhancer. Transform the user's query into a precise research plan.
 Query: {query}
@@ -45,8 +60,7 @@ def _parse_json(text: str) -> dict:
         if text.startswith("json"): text = text[4:]
     return json.loads(text.strip())
 
-def _llm_json(prompt, fallback):
-    llm = get_llm(temperature=0.2)
+def _llm_json_with(llm, prompt, fallback):
     for attempt in range(2):
         try:
             r = llm.invoke(prompt + ("" if attempt == 0 else "\n\nReturn ONLY valid JSON."))
@@ -54,6 +68,10 @@ def _llm_json(prompt, fallback):
         except Exception as e:
             logger.warning(f"LLM JSON attempt {attempt+1} failed: {e}")
     return fallback
+
+
+def _llm_json(prompt, fallback):
+    return _llm_json_with(get_llm(temperature=0.2), prompt, fallback)
 
 
 def _rewrite_query(query: str) -> str:
@@ -104,6 +122,7 @@ def enhance(state: ResearchState) -> dict:
         "research_angles": result.get("research_angles", [state["query"]]),
         "iteration": 0, "needs_retrieval": True, "retrieved_docs": [], "findings": [],
         "draft_answer": "", "answer_quality": {}, "report": "", "validation": {},
+        "credibility": {}, "contradictions": [], "citation_check": {}, "confidence": 0.0,
         "done": False, "status": "running", "error": None,
         "constraints": constraints,
     }
@@ -178,18 +197,96 @@ def retrieve(state: ResearchState) -> dict:
 
 def generate(state: ResearchState) -> dict:
     findings = state.get("findings", [])
-    mode = state.get("constraints", {}).get("mode", "research")
+    constraints = state.get("constraints", {})
+    mode = constraints.get("mode", "research")
     findings_text = "\n".join(
         f"[{f.get('citation_index', i+1)}] {f.get('source','?')}: {f.get('text','')[:500]}"
         for i, f in enumerate(findings)
     ) or "(no findings yet)"
-    response = get_llm(temperature=0.3).invoke(_GENERATE.format(
+    prompt = _GENERATE.format(
         query=state.get("clarified_query", state["query"]),
         mode=mode,
         angles=state.get("research_angles", []),
         findings=findings_text,
-    ))
+    )
+
+    from src.config import USE_CONSENSUS
+    if constraints.get("use_consensus", USE_CONSENSUS):
+        return {"draft_answer": _consensus_generate(prompt)}
+
+    response = get_model("heavy", temperature=0.3).invoke(prompt)
     return {"draft_answer": response.content}
+
+
+def _consensus_generate(prompt: str) -> str:
+    """Draft on two diverse models; a reason-tier judge merges the best of both."""
+    drafts = []
+    for role in ("heavy", "reason"):
+        try:
+            drafts.append(get_model(role, temperature=0.3).invoke(prompt).content)
+        except Exception as e:
+            logger.warning(f"Consensus draft ({role}) failed: {e}")
+    if not drafts:
+        return ""
+    if len(drafts) == 1:
+        return drafts[0]
+    try:
+        judge_prompt = (
+            "Two draft answers to the same task are below. Merge them into one superior answer: "
+            "keep every well-supported claim, drop anything unsupported, preserve inline [N] citations.\n\n"
+            f"DRAFT A:\n{drafts[0]}\n\nDRAFT B:\n{drafts[1]}"
+        )
+        return get_model("reason", temperature=0.2).invoke(judge_prompt).content
+    except Exception as e:
+        logger.warning(f"Consensus merge failed: {e}")
+        return drafts[0]
+
+
+def verify(state: ResearchState) -> dict:
+    """Deterministic citation verification: every [N] in the draft must map to a finding."""
+    findings = state.get("findings", [])
+    valid = {f.get("citation_index", i + 1) for i, f in enumerate(findings)}
+    draft = state.get("draft_answer", "") or ""
+    used = {int(n) for n in re.findall(r"\[(\d+)\]", draft)}
+    invalid = sorted(used - valid)
+    cited_text = " ".join(str(n) for n in used)
+    uncited_angles = [
+        a for a in state.get("research_angles", [])
+        if not used  # if nothing cited at all, flag every angle
+    ]
+    check = {
+        "valid": sorted(used & valid),
+        "invalid": invalid,
+        "all_supported": not invalid and bool(used),
+        "uncited_angles": uncited_angles,
+    }
+    if invalid:
+        logger.info(f"Citation verify: dangling citations {invalid} (valid={sorted(valid)})")
+    return {"citation_check": check}
+
+
+def contradiction(state: ResearchState) -> dict:
+    """Flag conflicting claims across findings using the reasoning tier."""
+    findings = state.get("findings", [])
+    if len(findings) < 2:
+        return {"contradictions": []}
+    findings_text = "\n".join(
+        f"[{f.get('citation_index', i+1)}] {f.get('source','?')}: {f.get('text','')[:400]}"
+        for i, f in enumerate(findings)
+    )
+    try:
+        result = _llm_json_with(
+            get_model("reason", temperature=0.1),
+            _CONTRADICTION.format(findings=findings_text),
+            fallback={"contradictions": []},
+        )
+        items = result.get("contradictions", []) or []
+        if items:
+            logger.info(f"Contradiction node: {len(items)} conflict(s) flagged")
+        return {"contradictions": items}
+    except Exception as e:
+        logger.warning(f"Contradiction detection failed: {e}")
+        return {"contradictions": []}
 
 
 def synthesize(state: ResearchState) -> dict:
@@ -209,7 +306,23 @@ def synthesize(state: ResearchState) -> dict:
         sources=sources,
         audience=audience,
     )
-    response = get_llm(temperature=0.3).invoke(prompt)
+
+    # Append a Conflicting Evidence directive when contradictions were detected.
+    contradictions = state.get("contradictions", []) or []
+    if contradictions:
+        conflict_lines = "\n".join(
+            f"- {c.get('topic','conflict')}: [{c.get('source_a','?')}] {c.get('claim_a','')} "
+            f"VS [{c.get('source_b','?')}] {c.get('claim_b','')}"
+            for c in contradictions[:6]
+        )
+        prompt += (
+            "\n\nIMPORTANT: The sources contain conflicting evidence. Add a '## Conflicting Evidence' "
+            "section that presents both sides with citations:\n" + conflict_lines
+        )
+
+    # Use the long-context tier when there are many findings to synthesize.
+    role = "long" if len(findings) >= _LONG_CONTEXT_FINDINGS else "heavy"
+    response = get_model(role, temperature=0.3).invoke(prompt)
     return {"report": response.content}
 
 

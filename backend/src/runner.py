@@ -28,6 +28,8 @@ _NODE_LABELS = {
     "generate": "Drafting report",
     "grade_answer": "Quality check",
     "reflect": "Reflecting on gaps",
+    "verify": "Verifying citations",
+    "contradiction": "Checking for conflicts",
     "synthesize": "Synthesizing report",
     "validate": "Validating report",
 }
@@ -89,9 +91,25 @@ async def _stream_graph(
                     yield sources_event(sources)
 
             elif node_name == "grade_relevance":
-                num_accepted = len(updates.get("findings", []))
+                findings = updates.get("findings", [])
+                num_accepted = len(findings)
                 detail = f"{label} — {num_accepted} accepted"
                 yield step_event(node_name, detail)
+                # Emit credibility-scored source cards from the accepted findings.
+                graded_sources = []
+                for f in findings:
+                    url = f.get("url", "")
+                    if url:
+                        cred = f.get("credibility", {})
+                        graded_sources.append({
+                            "url": url,
+                            "title": f.get("source", ""),
+                            "source_type": "web",
+                            "credibility": cred.get("score"),
+                            "signals": cred.get("signals", []),
+                        })
+                if graded_sources:
+                    yield sources_event(graded_sources)
 
             elif node_name == "grade_answer":
                 quality = updates.get("answer_quality", {}).get("overall", 0)
@@ -187,6 +205,10 @@ async def run_research(
         "findings": [],
         "draft_answer": "",
         "answer_quality": {},
+        "credibility": {},
+        "contradictions": [],
+        "citation_check": {},
+        "confidence": 0.0,
         "report": "",
         "validation": {},
         "done": False,
