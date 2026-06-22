@@ -2,8 +2,13 @@ import logging
 import re
 import requests
 import arxiv as arxiv_lib
+from collections import deque
 from typing import List, Dict, Any
-from src.config import TAVILY_API_KEY, TOP_K
+from urllib.parse import urljoin, urlparse
+from src.config import (
+    TAVILY_API_KEY, TOP_K, SEARXNG_URL, USE_SEARXNG,
+    CRAWL_MAX_PAGES, CRAWL_MAX_DEPTH,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -11,9 +16,48 @@ logger = logging.getLogger(__name__)
 # ─── Web Search ────────────────────────────────────────────────────────────────
 
 def web_search(query: str, num_results: int = TOP_K) -> List[Dict[str, Any]]:
+    """SearXNG (web-wide, when configured) → Tavily → stub, in order."""
+    if USE_SEARXNG and SEARXNG_URL:
+        results = searxng_search(query, num_results)
+        if results:
+            return results
     if TAVILY_API_KEY:
         return _tavily_search(query, num_results)
     return _stub_search(query, num_results)
+
+
+# ─── SearXNG meta-search (web-wide) ──────────────────────────────────────────────
+
+def searxng_search(query: str, num_results: int = TOP_K) -> List[Dict[str, Any]]:
+    """
+    Query a self-hosted SearXNG instance, aggregating results across every engine
+    it has enabled (Google, Bing, DuckDuckGo, Brave, arXiv, GitHub, …) — i.e. the
+    whole web. Returns the standard {text, source, url, relevance} shape.
+    """
+    if not SEARXNG_URL:
+        return []
+    try:
+        resp = requests.get(
+            f"{SEARXNG_URL}/search",
+            params={"q": query, "format": "json", "safesearch": 0},
+            headers={"User-Agent": "ResearchAssistant/2.0"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        results = []
+        for r in resp.json().get("results", [])[:num_results]:
+            content = r.get("content") or r.get("title", "")
+            results.append({
+                "text": f"{r.get('title','')}\n\n{content}".strip(),
+                "source": r.get("title", "Web Result"),
+                "url": r.get("url", ""),
+                "relevance": float(r.get("score", 1.0) or 1.0),
+                "engine": r.get("engine", ""),
+            })
+        return results
+    except Exception as e:
+        logger.error(f"SearXNG search failed: {e}")
+        return []
 
 
 def _tavily_search(query: str, num_results: int) -> List[Dict[str, Any]]:
@@ -239,16 +283,27 @@ def summarize(text: str, max_length: int = 500) -> str:
 
 # ─── Registry ──────────────────────────────────────────────────────────────────
 
+def _extract_clean_text(html: str, url: str) -> str:
+    """Main-text extraction via trafilatura; regex strip as fallback."""
+    try:
+        import trafilatura
+        extracted = trafilatura.extract(html, include_comments=False, include_tables=True, url=url)
+        if extracted and len(extracted) >= 50:
+            return extracted
+    except Exception:
+        pass
+    text = re.sub(r"<script[^>]*>.*?</script>", " ", html, flags=re.S)
+    text = re.sub(r"<style[^>]*>.*?</style>", " ", text, flags=re.S)
+    text = re.sub(r"<[^>]+>", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
 def fetch_url(url: str, **_) -> List[Dict[str, Any]]:
-    """Fetch a URL and return its text content as retrievable chunks."""
+    """Fetch a URL and return its clean main text as retrievable chunks."""
     try:
         resp = requests.get(url, timeout=15, headers={"User-Agent": "ResearchAssistant/2.0"})
         resp.raise_for_status()
-        # Strip HTML tags
-        text = re.sub(r"<script[^>]*>.*?</script>", " ", resp.text, flags=re.S)
-        text = re.sub(r"<style[^>]*>.*?</style>", " ", text, flags=re.S)
-        text = re.sub(r"<[^>]+>", " ", text)
-        text = re.sub(r"\s+", " ", text).strip()
+        text = _extract_clean_text(resp.text, url)
         if len(text) < 50:
             return []
         chunk_size = 800
@@ -259,13 +314,68 @@ def fetch_url(url: str, **_) -> List[Dict[str, Any]]:
         return []
 
 
+def _extract_links(html: str, base_url: str, same_host: str) -> List[str]:
+    links = []
+    for m in re.findall(r'href=["\']([^"\']+)["\']', html, flags=re.I):
+        absolute = urljoin(base_url, m)
+        if absolute.startswith("http") and urlparse(absolute).hostname:
+            links.append(absolute.split("#")[0])
+    return links
+
+
+def deep_crawl(seed, depth: int = CRAWL_MAX_DEPTH, max_pages: int = CRAWL_MAX_PAGES) -> List[Dict[str, Any]]:
+    """
+    Web-wide deep search: BFS that follows links from seed pages, extracting clean
+    text via trafilatura. `seed` may be a search query (string), a single URL, or a
+    list of URLs. A query is first expanded to seed URLs via web_search ("look at
+    every site, then follow where they lead").
+    """
+    if isinstance(seed, str):
+        seeds = [seed] if seed.startswith("http") else [
+            d["url"] for d in web_search(seed, 4) if d.get("url")
+        ]
+    else:
+        seeds = [u for u in seed if u]
+
+    visited: set[str] = set()
+    docs: List[Dict[str, Any]] = []
+    queue: deque = deque((u, 0) for u in seeds)
+
+    while queue and len(visited) < max_pages:
+        url, d = queue.popleft()
+        if url in visited:
+            continue
+        visited.add(url)
+        try:
+            resp = requests.get(url, timeout=12, headers={"User-Agent": "ResearchAssistant/2.0"})
+            resp.raise_for_status()
+        except Exception as e:
+            logger.warning(f"deep_crawl fetch failed for {url}: {e}")
+            continue
+
+        text = _extract_clean_text(resp.text, url)
+        if len(text) >= 120:
+            docs.append({"text": text[:1600], "source": url, "url": url, "relevance": 1.0})
+
+        if d < depth and len(visited) < max_pages:
+            host = urlparse(url).hostname or ""
+            for link in _extract_links(resp.text, url, host)[:8]:
+                if link not in visited:
+                    queue.append((link, d + 1))
+
+    logger.info(f"deep_crawl: visited {len(visited)} pages → {len(docs)} docs")
+    return docs
+
+
 TOOL_REGISTRY: Dict[str, Any] = {
     "web_search": web_search,
+    "searxng_search": searxng_search,
     "arxiv_search": arxiv_search,
     "github_search": github_search,
     "wikipedia_search": wikipedia_search,
     "semantic_scholar_search": semantic_scholar_search,
     "crossref_search": crossref_search,
     "fetch_url": fetch_url,
+    "deep_crawl": deep_crawl,
     "summarize": summarize,
 }

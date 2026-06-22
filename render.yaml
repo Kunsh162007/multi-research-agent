@@ -20,6 +20,10 @@ services:
         generateValue: true  # Render auto-generates a secure random value
       - key: TAVILY_API_KEY
         sync: false          # optional — leave blank to use stub search
+      - key: GEMINI_API_KEY
+        sync: false          # optional — free at aistudio.google.com/apikey (vision + long-context)
+      - key: SEARXNG_URL
+        sync: false          # optional — self-hosted SearXNG base URL for web-wide search
       - key: MODEL
         value: llama-3.3-70b-versatile
       - key: CORS_ORIGINS

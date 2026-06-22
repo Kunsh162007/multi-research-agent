@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { getHistory, uploadFile, fetchUrl } from '../lib/api'
+import { getHistory, uploadFile, fetchUrl, exportReport } from '../lib/api'
 import { useSSE } from '../hooks/useSSE'
 import StreamRenderer from './StreamRenderer'
 import FollowUpQuestions from './FollowUpQuestions'
 import ExportButton from './ExportButton'
 import ShareModal from './ShareModal'
+import CommandPalette from './CommandPalette'
+import { COMMANDS, parseLeadingCommand, type SlashCommand, type CommandAction } from '../lib/commands'
 import type { ChatMessage, FinalEvent, ResearchConstraints, ResearchMode } from '../types'
 
 interface Props {
@@ -70,6 +72,8 @@ const DEFAULT_CONSTRAINTS: ResearchConstraints = {
   use_hyde: false,
   use_rag_fusion: false,
   use_storm: false,
+  use_deep_crawl: false,
+  use_consensus: false,
   max_iterations: 3,
   quality_target: 75,
 }
@@ -77,6 +81,8 @@ const DEFAULT_CONSTRAINTS: ResearchConstraints = {
 const RAG_TOGGLES: [keyof ResearchConstraints, string, string][] = [
   ['use_adaptive',   'Adaptive',    'Auto-adjusts depth by query complexity'],
   ['use_reflexion',  'Reflexion',   'Self-critiques & retries when quality is low'],
+  ['use_deep_crawl', 'Deep Search', 'SearXNG web-wide + follows links (every site)'],
+  ['use_consensus',  'Consensus',   'Drafts on two models, judge merges the best'],
   ['use_hyde',       'HyDE',        'Generates hypothetical answer to anchor searches'],
   ['use_rag_fusion', 'RAG Fusion',  'Multi-query expansion with rank fusion'],
   ['use_storm',      'STORM',       'Expert personas each contribute unique angles'],
@@ -121,6 +127,7 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
   const [urlInput, setUrlInput] = useState('')
   const [urlLoading, setUrlLoading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [showHelp, setShowHelp] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -218,12 +225,44 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
     }
   }
 
+  const showPalette = /^\/[^\s]*$/.test(input)
+
+  async function exportLatest(action: CommandAction) {
+    const last = [...messages].reverse().find(m => m.role === 'assistant' && m.thread_id)
+    if (!last?.thread_id) { setUploadError('Run a research first, then export.'); return }
+    const fmt = action === 'export-docx' ? 'docx' : 'pdf'
+    const style = action === 'export-paper' ? 'paper' : undefined
+    try { await exportReport(last.thread_id, fmt, style) }
+    catch (err: any) { setUploadError(err.message) }
+  }
+
+  function runAction(action: CommandAction) {
+    if (action === 'upload') fileInputRef.current?.click()
+    else if (action === 'help') setShowHelp(true)
+    else exportLatest(action)
+  }
+
+  function selectCommand(c: SlashCommand) {
+    if (c.action) { runAction(c.action); setInput(''); return }
+    setInput(c.cmd + ' ')   // fill the command; user types the query, parsed on submit
+    textareaRef.current?.focus()
+  }
+
   async function handleSubmit(overrideQuery?: string) {
-    const q = (overrideQuery ?? input).trim()
-    if (!q || state.isStreaming) return
+    const raw = (overrideQuery ?? input).trim()
+    if (!raw || state.isStreaming) return
+
+    // Resolve a leading /command (mode, constraints, or an immediate action).
+    const parsed = parseLeadingCommand(raw)
+    if (parsed.action) { runAction(parsed.action); setInput(''); return }
+    const q = parsed.query.trim()
+    if (!q) { setInput(''); return }
+
+    const effMode: ResearchMode = parsed.mode ?? mode
+    if (parsed.mode) setMode(parsed.mode)
 
     const allDocs = attachedDocs.flatMap(a => a.docs)
-    const mergedConstraints: ResearchConstraints = { ...constraints, mode }
+    const mergedConstraints: ResearchConstraints = { ...constraints, ...(parsed.patch ?? {}), mode: effMode }
     const userId = `user-${Date.now()}`
     const assistantId = `asst-${Date.now()}`
     setActiveAssistantId(assistantId)
@@ -238,6 +277,8 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    // When the command palette is open, let it own navigation/selection keys.
+    if (showPalette && ['Enter', 'ArrowUp', 'ArrowDown', 'Tab', 'Escape'].includes(e.key)) return
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSubmit()
@@ -420,7 +461,9 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
                 {a}
               </button>
             ))}
-            <span style={{ marginLeft: 'auto' }}>
+            <span style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+              {constraints.use_deep_crawl && <span className="active-indicator deep">⌘ Deep Search</span>}
+              {constraints.use_consensus && <span className="active-indicator">⚖ Consensus</span>}
               <button
                 className={`options-btn${showAdvanced ? ' active' : ''}`}
                 onClick={() => setShowAdvanced(v => !v)}
@@ -510,10 +553,37 @@ export default function Chat({ onConversationCreated, loadThreadId }: Props) {
 
           {uploadError && <div className="upload-error">{uploadError}</div>}
 
+          {/* Command palette (Claude-Code style) */}
+          {showPalette && (
+            <CommandPalette
+              filter={input.slice(1)}
+              onSelect={selectCommand}
+              onClose={() => setInput('')}
+            />
+          )}
+
+          {/* Help panel */}
+          {showHelp && (
+            <div className="advanced-panel cmd-help">
+              <p className="advanced-title">Slash commands — type <code>/</code> in the box</p>
+              <div className="cmd-help-grid">
+                {COMMANDS.map(c => (
+                  <div key={c.cmd} className="cmd-help-row">
+                    <span className="cmd-name">{c.cmd}</span>
+                    <span className="cmd-desc">{c.desc}</span>
+                  </div>
+                ))}
+              </div>
+              <button className="btn-ghost" onClick={() => setShowHelp(false)}>Close</button>
+            </div>
+          )}
+
           {/* Textarea */}
-          <input ref={fileInputRef} type="file" accept=".pdf,.docx,.doc,.txt,.md,.rst" style={{ display: 'none' }} onChange={handleFileChange} />
+          <input ref={fileInputRef} type="file"
+            accept=".pdf,.docx,.doc,.txt,.md,.rst,.png,.jpg,.jpeg,.webp,.gif,.bmp,.mp3,.wav,.m4a,.ogg,.flac,.csv,.json,.xlsx,.xls"
+            style={{ display: 'none' }} onChange={handleFileChange} />
           <div className="gold-input-row">
-            <button className="attach-btn" onClick={() => fileInputRef.current?.click()} title="Attach file (PDF, DOCX, TXT)">⊕</button>
+            <button className="attach-btn" onClick={() => fileInputRef.current?.click()} title="Attach any file — image, audio, CSV, PDF, DOCX">⊕</button>
             <textarea
               ref={textareaRef}
               className="chat-input"

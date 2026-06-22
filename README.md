@@ -30,7 +30,7 @@ History:       history.db      (chat log — user-scoped, browsable)
 Monitor:       monitor.db      (knowledge items — per user/topic)
 Auth:          Google OAuth → JWT in sessionStorage
 Frontend:      React + Vite + Tailwind
-Backend:       FastAPI + LangGraph + Claude claude-sonnet-4-6
+Backend:       FastAPI + LangGraph + multi-model router (Groq + free Gemini)
 ```
 
 ---
@@ -59,7 +59,8 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 cp .env.example .env
-# Edit .env — set ANTHROPIC_API_KEY and GOOGLE_CLIENT_ID at minimum
+# Edit .env — set GROQ_API_KEY and GOOGLE_CLIENT_ID at minimum.
+# Optional (free): GEMINI_API_KEY (vision + long-context), SEARXNG_URL (web-wide search)
 ```
 
 ### 3. Frontend
@@ -143,6 +144,34 @@ GET  /history/search?q=safety   — full-text search
 DELETE /history/<thread_id>     — delete a conversation
 ```
 
+### Multimodal Input
+Attach **any data form** — the `/upload` endpoint normalizes everything into research
+context: PDF/DOCX/TXT/MD (text), **images** (PNG/JPG/WEBP → vision caption + OCR),
+**audio** (MP3/WAV/M4A → Whisper transcript), and **data files** (CSV/JSON/XLSX → pandas
+summary). Image vision needs `GEMINI_API_KEY` (or Groq Llama-4); audio needs Groq Whisper.
+
+### Slash Commands
+Type `/` in the chat box for a Claude-Code-style command palette: `/research`, `/deep`,
+`/explain`, `/validate`, `/discover`, `/diagram`, `/consensus`, `/paper`, `/export`,
+`/upload`, `/help`. The repo also ships Claude Code project commands under
+`.claude/commands/` (`/deep-research`, `/make-paper`, `/add-topic`).
+
+### Web-wide Deep Search (SearXNG)
+For research that "looks at every site", run the bundled self-hosted **SearXNG** meta-search
+(aggregates Google, Bing, DuckDuckGo, Brave, arXiv, GitHub, … — no API key):
+
+```bash
+docker compose -f docker-compose.searxng.yml up -d
+# then in backend/.env:
+#   SEARXNG_URL=http://localhost:8080
+#   USE_SEARXNG=true
+```
+
+When `SEARXNG_URL` is set it becomes the default engine behind `web_search` (Tavily → stub
+remain fallbacks). Enable **deep crawl** (`USE_DEEP_CRAWL=true`, or the `/deep` command / "Deep
+Search" toggle) to follow links from search hits via a BFS crawler with clean text extraction
+(`trafilatura`). `POST /deep-search {query}` exposes it directly.
+
 ### Knowledge Monitor
 Track AI or research topics. The monitor fetches new arXiv papers and web articles:
 - **Scheduled**: runs every `MONITOR_INTERVAL_HOURS` (default 24h) automatically
@@ -163,10 +192,14 @@ All config lives in `backend/.env`:
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
-| `ANTHROPIC_API_KEY` | ✓ | — | Claude API key |
+| `GROQ_API_KEY` | ✓ | — | Free LLM backend (fast/heavy/reason/vision/audio) |
 | `GOOGLE_CLIENT_ID` | ✓ | — | OAuth client ID |
 | `JWT_SECRET` | ✓ | weak default | Change in production |
-| `TAVILY_API_KEY` | — | stub search | Real web search |
+| `GEMINI_API_KEY` | — | Groq fallback | Free vision + long-context synthesis |
+| `SEARXNG_URL` / `USE_SEARXNG` | — | Tavily/stub | Web-wide meta-search |
+| `USE_DEEP_CRAWL` | — | false | Follow links from search hits (BFS crawl) |
+| `USE_CONSENSUS` | — | false | Two-model draft + judge merge |
+| `TAVILY_API_KEY` | — | stub search | Web search fallback |
 | `MAX_ITERATIONS` | — | 8 | Self-RAG loop cap |
 | `QUALITY_TARGET` | — | 75 | Self-RAG quality gate (0-100) |
 | `MONITOR_INTERVAL_HOURS` | — | 24 | Knowledge monitor frequency |

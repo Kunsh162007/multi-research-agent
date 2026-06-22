@@ -142,6 +142,19 @@ async def fetch_url_endpoint(request: Request, user: dict = Depends(get_current_
         raise HTTPException(422, "Could not extract content from that URL")
     return {"url": url, "chunks": len(docs), "docs": docs}
 
+@app.post("/deep-search")
+async def deep_search_endpoint(request: Request, user: dict = Depends(get_current_user)):
+    """Web-wide deep search: SearXNG across every engine, then follow links (BFS crawl)."""
+    if not _rate_check(f"deepsearch:{user['google_id']}", 10, 60):
+        raise HTTPException(429, "Deep-search rate limit — wait a moment.")
+    data = await request.json()
+    query = (data.get("query") or "").strip()
+    if not query:
+        raise HTTPException(400, "query is required")
+    from src.tools import deep_crawl
+    docs = await asyncio.get_event_loop().run_in_executor(None, deep_crawl, query)
+    return {"query": query, "pages": len(docs), "docs": docs}
+
 @app.post("/resume/{thread_id}")
 async def resume(thread_id: str, user: dict = Depends(get_current_user)):
     async def gen():
@@ -219,7 +232,7 @@ async def get_suggestions(thread_id: str, user: dict = Depends(get_current_user)
 
 # ── Export ─────────────────────────────────────────────────────────────────────
 @app.get("/history/{thread_id}/export")
-async def export_report(thread_id: str, format: str = "md", user: dict = Depends(get_current_user)):
+async def export_report(thread_id: str, format: str = "md", style: str = "report", user: dict = Depends(get_current_user)):
     msgs = history_store.get_messages(thread_id, user["google_id"])
     if not msgs: raise HTTPException(404, "Not found")
 
@@ -234,12 +247,18 @@ async def export_report(thread_id: str, format: str = "md", user: dict = Depends
             findings = m["metadata"].get("findings", [])
             break
 
-    from src.export_report import to_markdown, to_pdf, to_bibtex
+    from src.export_report import to_markdown, to_pdf, to_docx, to_bibtex
     if format == "pdf":
-        data = to_pdf(title, query, report)
-        if not data: raise HTTPException(500, "fpdf2 not installed. Run: pip install fpdf2")
+        data = to_pdf(title, query, report, style=style)
+        if not data: raise HTTPException(500, "PDF export unavailable. Run: pip install weasyprint fpdf2")
         return Response(content=data, media_type="application/pdf",
             headers={"Content-Disposition": f'attachment; filename="{thread_id[:8]}.pdf"'})
+    elif format == "docx":
+        data = to_docx(title, query, report, style=style)
+        if not data: raise HTTPException(500, "DOCX export unavailable. Run: pip install python-docx")
+        return Response(content=data,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f'attachment; filename="{thread_id[:8]}.docx"'})
     elif format == "bib":
         data = to_bibtex(findings)
         return Response(content=data, media_type="text/plain",

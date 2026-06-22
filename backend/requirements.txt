@@ -22,4 +22,12 @@ markdown>=3.6             # Markdown → HTML for public share pages
 tavily-python>=0.3.0      # Real web search (optional — stub used if key absent)
 python-multipart>=0.0.9   # required for FastAPI UploadFile / Form data
 pymupdf>=1.23.0           # PDF parsing for file upload
-python-docx>=1.1.0        # DOCX parsing for file upload
+python-docx>=1.1.0        # DOCX parsing + DOCX export
+# Multi-model + multimodal + deep search + rich export (all optional/guarded)
+langchain-google-genai>=2.0.0  # Gemini vision + long-context (lazy-imported)
+groq>=0.11.0              # Groq SDK for Whisper audio transcription
+trafilatura>=1.8.0        # clean main-text extraction for deep_crawl / fetch_url
+weasyprint>=62.0          # high-fidelity Markdown→HTML→PDF (falls back to fpdf2)
+pandas>=2.0.0             # CSV/XLSX data-file summaries
+openpyxl>=3.1.0           # XLSX reading for pandas
+Pillow>=10.0.0            # image handling for multimodal upload

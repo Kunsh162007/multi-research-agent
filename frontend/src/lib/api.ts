@@ -55,14 +55,15 @@ export const removeTag = (threadId: string, tag: string) => api('DELETE', `/hist
 export const getSuggestions = (threadId: string) => api<{ questions: string[] }>('GET', `/history/${threadId}/suggestions`)
 
 // ── Export ────────────────────────────────────────────────────────────────────
-export async function exportReport(threadId: string, format: 'md' | 'pdf' | 'bib'): Promise<void> {
+export async function exportReport(threadId: string, format: 'md' | 'pdf' | 'docx' | 'bib', style?: 'paper' | 'report'): Promise<void> {
   const token = getToken()
-  const res = await fetch(`/history/${threadId}/export?format=${format}`, {
+  const qs = style ? `?format=${format}&style=${style}` : `?format=${format}`
+  const res = await fetch(`/history/${threadId}/export${qs}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
   if (!res.ok) throw new Error(`Export failed: ${res.statusText}`)
   const blob = await res.blob()
-  const ext = format === 'bib' ? 'bib' : format
+  const ext = format
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a'); a.href = url; a.download = `report.${ext}`; a.click()
   URL.revokeObjectURL(url)

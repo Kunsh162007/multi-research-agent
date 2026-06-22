@@ -23,6 +23,12 @@ class ResearchState(TypedDict):
     draft_answer: str
     answer_quality: Dict[str, Any]          # {supported, complete, overall, feedback}
 
+    # accuracy layer (phase 1)
+    credibility: Dict[str, Any]        # {avg, by_source} source-credibility summary
+    contradictions: List[Dict[str, Any]]  # conflicting claims across findings
+    citation_check: Dict[str, Any]     # {valid, invalid, uncited_angles}
+    confidence: float                  # rolling confidence estimate
+
     # phase 3/4
     report: str
     validation: Dict[str, Any]

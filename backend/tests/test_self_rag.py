@@ -31,7 +31,7 @@ def _make_state(**overrides):
     return base
 
 
-@patch("src.self_rag.get_llm")
+@patch("src.self_rag.get_fast_llm")
 def test_decide_retrieval_true(mock_get_llm):
     mock_llm = MagicMock()
     mock_llm.invoke.return_value = MagicMock(content=json.dumps({"needs_retrieval": True, "reason": "no findings yet"}))
@@ -42,7 +42,7 @@ def test_decide_retrieval_true(mock_get_llm):
     assert result["needs_retrieval"] is True
 
 
-@patch("src.self_rag.get_llm")
+@patch("src.self_rag.get_fast_llm")
 def test_decide_retrieval_false(mock_get_llm):
     mock_llm = MagicMock()
     mock_llm.invoke.return_value = MagicMock(content=json.dumps({"needs_retrieval": False, "reason": "sufficient findings"}))
@@ -53,7 +53,7 @@ def test_decide_retrieval_false(mock_get_llm):
     assert result["needs_retrieval"] is False
 
 
-@patch("src.self_rag.get_llm")
+@patch("src.self_rag.get_fast_llm")
 def test_grade_relevance_filters(mock_get_llm):
     docs = [
         {"text": "RAG is great", "source": "Paper A", "url": "http://a.com", "relevance": 1.0},
@@ -74,7 +74,7 @@ def test_grade_relevance_filters(mock_get_llm):
     assert result["retrieved_docs"] == []
 
 
-@patch("src.self_rag.get_llm")
+@patch("src.self_rag.get_fast_llm")
 def test_grade_answer_scores(mock_get_llm):
     quality = {"supported": 80, "complete": 70, "overall": 75, "feedback": "Good"}
     mock_llm = MagicMock()
@@ -88,7 +88,7 @@ def test_grade_answer_scores(mock_get_llm):
     assert result["iteration"] == 2
 
 
-@patch("src.self_rag.get_llm")
+@patch("src.self_rag.get_fast_llm")
 def test_grade_relevance_empty_docs(mock_get_llm):
     from src.self_rag import grade_relevance
     result = grade_relevance(_make_state(retrieved_docs=[]))

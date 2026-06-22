@@ -28,7 +28,7 @@ class HistoryStore:
                 id INTEGER PRIMARY KEY AUTOINCREMENT, thread_id TEXT,
                 user_id TEXT NOT NULL, role TEXT, content TEXT,
                 metadata TEXT, created_at TEXT,
-                FOREIGN KEY (thread_id) REFERENCES conversations(thread_id)
+                FOREIGN KEY (thread_id, user_id) REFERENCES conversations(thread_id, user_id)
             );
             CREATE TABLE IF NOT EXISTS conversation_tags (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
