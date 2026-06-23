@@ -11,6 +11,7 @@ interface Props {
   refreshTrigger: number
   onOpenMonitor: () => void
   onOpenDashboard: () => void
+  open?: boolean
 }
 
 export default function Sidebar({
@@ -22,6 +23,7 @@ export default function Sidebar({
   refreshTrigger,
   onOpenMonitor,
   onOpenDashboard,
+  open = false,
 }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
@@ -63,7 +65,7 @@ export default function Sidebar({
     : conversations
 
   return (
-    <aside className="sidebar-root">
+    <aside className={`sidebar-root${open ? ' open' : ''}`}>
       {/* Logo */}
       <div className="sidebar-logo">
         <div className="sidebar-logo-icon">⚡</div>

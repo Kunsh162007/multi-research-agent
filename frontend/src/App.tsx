@@ -16,6 +16,7 @@ export default function App() {
   const [view, setView] = useState<MainView>('chat')
   const [chatKey, setChatKey] = useState(0)
   const [pendingQuery, setPendingQuery] = useState<string | undefined>()
+  const [navOpen, setNavOpen] = useState(false)   // mobile drawer
 
   if (!user) {
     return <Login onLogin={login} />
@@ -27,6 +28,7 @@ export default function App() {
     setPendingQuery(undefined)
     setChatKey(n => n + 1)   // force Chat remount → clears messages state
     setView('chat')
+    setNavOpen(false)
   }
 
   function handleDeepDive(query: string) {
@@ -35,12 +37,14 @@ export default function App() {
     setPendingQuery(query)
     setChatKey(n => n + 1)   // fresh Chat that auto-runs the query
     setView('chat')
+    setNavOpen(false)
   }
 
   function handleSelectConversation(threadId: string) {
     setActiveThreadId(threadId)
     setLoadThreadId(threadId)
     setView('chat')
+    setNavOpen(false)
   }
 
   function handleConversationCreated() {
@@ -50,6 +54,19 @@ export default function App() {
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
 
+      {/* Mobile drawer toggle */}
+      <button
+        className="mobile-nav-toggle"
+        aria-label="Open navigation"
+        onClick={() => setNavOpen(true)}
+      >☰</button>
+
+      {/* Backdrop shown when drawer is open on mobile */}
+      <div
+        className={`sidebar-overlay${navOpen ? ' show' : ''}`}
+        onClick={() => setNavOpen(false)}
+      />
+
       <Sidebar
         user={user}
         onLogout={logout}
@@ -57,8 +74,9 @@ export default function App() {
         onNewChat={handleNewChat}
         activeThreadId={activeThreadId}
         refreshTrigger={historyRefresh}
-        onOpenMonitor={() => setView('monitor')}
-        onOpenDashboard={() => setView('dashboard')}
+        onOpenMonitor={() => { setView('monitor'); setNavOpen(false) }}
+        onOpenDashboard={() => { setView('dashboard'); setNavOpen(false) }}
+        open={navOpen}
       />
 
       <main style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
