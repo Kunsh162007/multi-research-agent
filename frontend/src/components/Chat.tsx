@@ -405,10 +405,10 @@ export default function Chat({ onConversationCreated, loadThreadId, initialQuery
                   </div>
 
                   <div className="assistant-card">
-                    {msg.isStreaming || msg.events.length > 0 ? (
+                    {msg.isStreaming || msg.events.length > 0 || msg.report ? (
                       <StreamRenderer
                         events={msg.events}
-                        report={msg.report ?? ''}
+                        report={msg.report ?? msg.content ?? ''}
                         isStreaming={msg.isStreaming}
                         quality={state.quality}
                         iteration={state.iteration}

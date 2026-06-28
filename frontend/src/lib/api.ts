@@ -2,7 +2,8 @@ import { getToken, clearSession } from './auth'
 import type { Conversation, KnowledgeItem, Topic, Stats, Digest, Briefing, ResearchConstraints } from '../types'
 
 const BASE = ''
-const API_TIMEOUT_MS = 20_000  // 20s for regular REST calls
+const API_TIMEOUT_MS = 20_000   // 20s for regular REST calls
+const SYNC_TIMEOUT_MS = 120_000 // 2min for sync: arxiv + web fetch + heavy LLM briefing
 
 function headers(contentType = true): HeadersInit {
   const token = getToken()
@@ -12,12 +13,12 @@ function headers(contentType = true): HeadersInit {
   }
 }
 
-async function api<T>(method: string, path: string, body?: object): Promise<T> {
+async function api<T>(method: string, path: string, body?: object, timeoutMs = API_TIMEOUT_MS): Promise<T> {
   const res = await fetch(BASE + path, {
     method,
     headers: headers(),
     body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(API_TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
   })
   if (res.status === 401) {
     clearSession()
@@ -78,8 +79,8 @@ export const listTopics = (): Promise<Topic[]> => api('GET', '/monitor/topics')
 export const addTopic = (topic: string, sync_interval_hours = 24) =>
   api('POST', '/monitor/topics', { topic, sync_interval_hours })
 export const removeTopic = (topic: string) => api('DELETE', `/monitor/topics/${encodeURIComponent(topic)}`)
-export const syncAll = () => api<{ synced: Record<string, number> }>('POST', '/monitor/sync')
-export const syncTopic = (topic: string) => api<{ topic: string; new_items: number }>('POST', `/monitor/sync/${encodeURIComponent(topic)}`)
+export const syncAll = () => api<{ synced: Record<string, number> }>('POST', '/monitor/sync', undefined, SYNC_TIMEOUT_MS)
+export const syncTopic = (topic: string) => api<{ topic: string; new_items: number }>('POST', `/monitor/sync/${encodeURIComponent(topic)}`, undefined, SYNC_TIMEOUT_MS)
 export const getKnowledge = (topic?: string, limit = 50): Promise<{ items: KnowledgeItem[]; total: number }> => {
   const p = new URLSearchParams({ limit: String(limit) }); if (topic) p.set('topic', topic)
   return api('GET', `/monitor/knowledge?${p}`)
